@@ -12,17 +12,39 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 2. Leemos el prompt del usuario
-        const userPrompt = req.body.prompt;
+        // --- ¡CAMBIOS AQUÍ! ---
         
-        // 3. Obtenemos el modelo (¡Con tu versión correcta!)
+        // 2. Leemos el prompt Y EL HISTORIAL del usuario
+        const { prompt: userPrompt, history: incomingHistory } = req.body;
+
+        if (!userPrompt) {
+            return res.status(400).json({ reply: 'No se recibió ningún prompt.' });
+        }
+
+        // 3. Obtenemos el modelo
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+        // 4. Mapeamos el historial del frontend al formato que espera la API
+        // La API usa "user" (igual) y "model" (en lugar de "ia")
+        const mappedHistory = (incomingHistory || []).map(msg => ({
+            role: msg.role === 'ia' ? 'model' : 'user', // Convertimos 'ia' a 'model'
+            parts: [{ text: msg.text }]
+        }));
+
+        // 5. Iniciamos una sesión de chat con el historial
+        const chat = model.startChat({
+            history: mappedHistory,
+        });
+
+        // 6. Enviamos el nuevo mensaje dentro de esa sesión de chat
+        const result = await chat.sendMessage(userPrompt);
         
-        const result = await model.generateContent(userPrompt);
+        // --- FIN DE LOS CAMBIOS ---
+        
         const response = await result.response;
         const text = response.text();
 
-        // 4. Enviamos la respuesta de vuelta al frontend
+        // 7. Enviamos la respuesta de vuelta al frontend
         res.status(200).json({ reply: text });
 
     } catch (error) {
