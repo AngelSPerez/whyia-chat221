@@ -47,7 +47,7 @@ h1 {
     padding: 12px 18px;
     border-radius: 20px;
     max-width: 85%; /* Un poco más anchas */
-    word-wrap: break-word; 
+    word-wrap: break-word;
 }
 
 .message p {
@@ -88,7 +88,7 @@ h1 {
     border-radius: 12px; /* Más redondeado, como en la captura */
     padding: 12px 18px; /* Padding interno */
     font-size: 1rem;
-    outline: none; 
+    outline: none;
     transition: border-color 0.2s;
 }
 
@@ -120,71 +120,50 @@ h1 {
     cursor: not-allowed;
 }
 
-/* ... (todo tu CSS de tema oscuro va aquí arriba) ... */
-
-/* Estilo para el botón desactivado */
-#send-button:disabled {
-    background-color: #2a2a2a;
-    color: #555; /* Texto del botón deshabilitado */
-    cursor: not-allowed;
-}
-
-/* --- CSS DEL SPINNER (LO NUEVO) --- */
+/* --- CSS DEL SPINNER --- */
 .spinner {
-    /* margin: 100px auto 0;  <-- Eliminamos esto para que se alinee en la burbuja */
     width: 70px;
     text-align: center;
-    /* Añadimos padding para que no esté pegado al borde de la burbuja */
-    padding-top: 5px; 
-  }
-  
-  .spinner > div {
-    width: 12px;  /* Un poco más pequeño */
-    height: 12px; /* Un poco más pequeño */
-    background-color: #888; /* Color gris claro que contrasta */
-  
+    padding-top: 5px;
+}
+
+.spinner > div {
+    width: 12px;
+    height: 12px;
+    background-color: #888;
     border-radius: 100%;
     display: inline-block;
     -webkit-animation: sk-bouncedelay 1.4s infinite ease-in-out both;
     animation: sk-bouncedelay 1.4s infinite ease-in-out both;
-  }
-  
-  .spinner .bounce1 {
-    -webkit-animation-delay: -0.32s;
-    animation-delay: -0.32s;
-  }
-  
-  .spinner .bounce2 {
-    -webkit-animation-delay: -0.16s;
-    animation-delay: -0.16s;
-  }
-  
-  @-webkit-keyframes sk-bouncedelay {
-    0%, 80%, 100% { -webkit-transform: scale(0); }
-    40% { -webkit-transform: scale(1.0); }
-  }
-  
-  @keyframes sk-bouncedelay {
-    0%, 80%, 100% { 
-      -webkit-transform: scale(0);
-      transform: scale(0);
-    }
-    40% { 
-      -webkit-transform: scale(1.0);
-      transform: scale(1.0);
-    }
-  }
-
-/* ... (todo tu CSS anterior va aquí) ... */
-
-/* Estilo para el botón desactivado */
-#send-button:disabled {
-    background-color: #2a2a2a;
-    color: #555; /* Texto del botón deshabilitado */
-    cursor: not-allowed;
 }
 
-/* --- Estilos para Bloques de Código (LO NUEVO) --- */
+.spinner .bounce1 {
+    -webkit-animation-delay: -0.32s;
+    animation-delay: -0.32s;
+}
+
+.spinner .bounce2 {
+    -webkit-animation-delay: -0.16s;
+    animation-delay: -0.16s;
+}
+
+@-webkit-keyframes sk-bouncedelay {
+    0%, 80%, 100% { -webkit-transform: scale(0); }
+    40% { -webkit-transform: scale(1.0); }
+}
+
+@keyframes sk-bouncedelay {
+    0%, 80%, 100% {
+        -webkit-transform: scale(0);
+        transform: scale(0);
+    }
+    40% {
+        -webkit-transform: scale(1.0);
+        transform: scale(1.0);
+    }
+}
+
+/* --- Estilos para Bloques de Código --- */
 .message.ia pre {
     background-color: #121212; /* Un fondo aún más oscuro para el código */
     border: 1px solid #333; /* Borde sutil */
@@ -200,4 +179,50 @@ h1 {
 .message.ia code {
     font-family: inherit; /* Hereda la fuente monoespaciada de <pre> */
     color: #d0d0d0; /* Un color de texto ligeramente diferente para el código */
+}
+
+
+/* --- ESTILOS RESPONSIVOS PARA MÓVILES --- */
+@media (max-width: 768px) {
+
+    /* Hacemos que el contenedor ocupe toda la pantalla */
+    .chat-container {
+        max-width: 100%;
+    }
+
+    /* Reducimos un poco los paddings generales */
+    h1 {
+        padding: 15px 15px 10px 15px;
+        font-size: 1.15rem; /* Un poco más pequeño en móviles */
+    }
+
+    .chat-box {
+        padding: 15px;
+    }
+
+    .input-area {
+        padding: 15px 10px 20px 10px;
+    }
+
+    /* Ajustamos las burbujas de chat */
+    .message {
+        max-width: 90%; /* Dejamos un poco más de espacio */
+        padding: 10px 15px;
+    }
+
+    /* Ajustamos el área de input */
+    #user-input {
+        padding: 10px 15px;
+        font-size: 0.95rem;
+    }
+
+    #send-button {
+        padding: 10px 15px;
+        font-size: 0.95rem;
+    }
+    
+    /* Hacemos que el padding del bloque de código sea más pequeño */
+    .message.ia pre {
+        padding: 12px;
+    }
 }
