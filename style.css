@@ -182,6 +182,33 @@ h1 {
 }
 
 
+/* --- ESTILOS DE SCROLLBAR PERSONALIZADO --- */
+
+/* Aplicamos el scroll personalizado solo a .chat-box en navegadores WebKit */
+.chat-box::-webkit-scrollbar {
+    width: 8px; /* Ancho de la barra de scroll */
+}
+
+/* La "pista" o fondo del scrollbar */
+.chat-box::-webkit-scrollbar-track {
+    background: #1c1c1c; /* Mismo color que el fondo del body/chat */
+    border-radius: 10px;
+}
+
+/* La barra o "pulgar" que se mueve */
+.chat-box::-webkit-scrollbar-thumb {
+    background-color: #444; /* Un gris oscuro que resalta un poco */
+    border-radius: 10px; /* Bordes redondeados */
+    /* Un pequeño borde que coincide con el fondo para dar un efecto de "flotar" */
+    border: 2px solid #1c1c1c; 
+}
+
+/* Efecto al pasar el mouse sobre la barra */
+.chat-box::-webkit-scrollbar-thumb:hover {
+    background-color: #555; /* Un gris un poco más claro */
+}
+
+
 /* --- ESTILOS RESPONSIVOS PARA MÓVILES --- */
 @media (max-width: 768px) {
 
@@ -226,3 +253,4 @@ h1 {
         padding: 12px;
     }
 }
+
