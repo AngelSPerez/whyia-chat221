@@ -1,0 +1,203 @@
+/* Estilo general - TEMA OSCURO */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #1c1c1c; /* Fondo principal oscuro */
+    color: #f0f0f0; /* Texto principal claro */
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    height: 100vh;
+}
+
+/* Contenedor principal del chat */
+.chat-container {
+    width: 100%;
+    max-width: 768px; /* Un ancho estándar para chats, centrado */
+    height: 100vh; /* Ocupa toda la altura */
+    background: #1c1c1c; /* Coincide con el body */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Eliminamos box-shadow y border-radius para un look de página completa */
+}
+
+/* Título */
+h1 {
+    text-align: left; /* Alineado a la izquierda como en la captura */
+    color: #ececec;
+    padding: 20px 20px 10px 20px; /* Ajuste de padding */
+    margin: 0;
+    font-size: 1.25rem; /* Tamaño más sutil */
+    border-bottom: none; /* Sin borde inferior */
+    opacity: 0.8; /* Un poco de opacidad como en la captura */
+}
+
+/* Caja de mensajes */
+.chat-box {
+    flex-grow: 1; /* Ocupa todo el espacio vertical disponible */
+    padding: 20px;
+    overflow-y: auto; /* Scroll cuando hay muchos mensajes */
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Espacio entre burbujas de chat */
+}
+
+/* Estilo de cada burbuja de mensaje */
+.message {
+    padding: 12px 18px;
+    border-radius: 20px;
+    max-width: 85%; /* Un poco más anchas */
+    word-wrap: break-word; 
+}
+
+.message p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Mensajes del usuario (derecha) */
+.message.user {
+    background-color: #3a3a3a; /* Gris oscuro para el usuario */
+    color: #ececec;
+    align-self: flex-end; /* Alineado a la derecha */
+    border-bottom-right-radius: 5px;
+}
+
+/* Mensajes de la IA (izquierda) */
+.message.ia {
+    background-color: #2a2a2a; /* Gris un poco más oscuro para la IA */
+    color: #ececec; /* Texto claro */
+    align-self: flex-start; /* Alineado a la izquierda */
+    border-bottom-left-radius: 5px;
+}
+
+/* Área de entrada de texto */
+.input-area {
+    display: flex;
+    border-top: 1px solid #333; /* Borde superior oscuro */
+    padding: 20px 15px 25px 15px; /* Más padding, especialmente abajo */
+    background-color: #1c1c1c; /* Fondo oscuro */
+    flex-shrink: 0; /* Evita que el área de input se encoja */
+}
+
+#user-input {
+    flex-grow: 1;
+    border: 1px solid #444; /* Borde gris oscuro */
+    background-color: #2b2b2b; /* Fondo del input oscuro */
+    color: #f0f0f0; /* Texto claro */
+    border-radius: 12px; /* Más redondeado, como en la captura */
+    padding: 12px 18px; /* Padding interno */
+    font-size: 1rem;
+    outline: none; 
+    transition: border-color 0.2s;
+}
+
+#user-input:focus {
+    border-color: #555; /* Borde un poco más claro al enfocar */
+}
+
+#send-button {
+    background-color: #333; /* Botón oscuro */
+    color: #ececec; /* Texto claro */
+    border: none;
+    border-radius: 12px; /* Coincide con el input */
+    padding: 12px 20px; /* Coincide con el input */
+    margin-left: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: background-color 0.2s;
+}
+
+#send-button:hover {
+    background-color: #444; /* Un poco más claro al pasar el mouse */
+}
+
+/* Estilo para el botón desactivado */
+#send-button:disabled {
+    background-color: #2a2a2a;
+    color: #555; /* Texto del botón deshabilitado */
+    cursor: not-allowed;
+}
+
+/* ... (todo tu CSS de tema oscuro va aquí arriba) ... */
+
+/* Estilo para el botón desactivado */
+#send-button:disabled {
+    background-color: #2a2a2a;
+    color: #555; /* Texto del botón deshabilitado */
+    cursor: not-allowed;
+}
+
+/* --- CSS DEL SPINNER (LO NUEVO) --- */
+.spinner {
+    /* margin: 100px auto 0;  <-- Eliminamos esto para que se alinee en la burbuja */
+    width: 70px;
+    text-align: center;
+    /* Añadimos padding para que no esté pegado al borde de la burbuja */
+    padding-top: 5px; 
+  }
+  
+  .spinner > div {
+    width: 12px;  /* Un poco más pequeño */
+    height: 12px; /* Un poco más pequeño */
+    background-color: #888; /* Color gris claro que contrasta */
+  
+    border-radius: 100%;
+    display: inline-block;
+    -webkit-animation: sk-bouncedelay 1.4s infinite ease-in-out both;
+    animation: sk-bouncedelay 1.4s infinite ease-in-out both;
+  }
+  
+  .spinner .bounce1 {
+    -webkit-animation-delay: -0.32s;
+    animation-delay: -0.32s;
+  }
+  
+  .spinner .bounce2 {
+    -webkit-animation-delay: -0.16s;
+    animation-delay: -0.16s;
+  }
+  
+  @-webkit-keyframes sk-bouncedelay {
+    0%, 80%, 100% { -webkit-transform: scale(0); }
+    40% { -webkit-transform: scale(1.0); }
+  }
+  
+  @keyframes sk-bouncedelay {
+    0%, 80%, 100% { 
+      -webkit-transform: scale(0);
+      transform: scale(0);
+    }
+    40% { 
+      -webkit-transform: scale(1.0);
+      transform: scale(1.0);
+    }
+  }
+
+/* ... (todo tu CSS anterior va aquí) ... */
+
+/* Estilo para el botón desactivado */
+#send-button:disabled {
+    background-color: #2a2a2a;
+    color: #555; /* Texto del botón deshabilitado */
+    cursor: not-allowed;
+}
+
+/* --- Estilos para Bloques de Código (LO NUEVO) --- */
+.message.ia pre {
+    background-color: #121212; /* Un fondo aún más oscuro para el código */
+    border: 1px solid #333; /* Borde sutil */
+    border-radius: 8px; /* Bordes redondeados */
+    padding: 16px;
+    overflow-x: auto; /* Scroll horizontal si el código es muy ancho */
+    font-family: "Courier New", Courier, monospace; /* Fuente monoespaciada */
+    font-size: 0.9rem;
+    line-height: 1.4;
+    white-space: pre; /* Mantiene los espacios y saltos de línea */
+}
+
+.message.ia code {
+    font-family: inherit; /* Hereda la fuente monoespaciada de <pre> */
+    color: #d0d0d0; /* Un color de texto ligeramente diferente para el código */
+}
