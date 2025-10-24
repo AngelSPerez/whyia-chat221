@@ -4,6 +4,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const chatBox = document.getElementById("chat-box");
     const sendButton = document.getElementById("send-button");
 
+    // --- ¡CAMBIO AQUÍ! ---
+    // Array para guardar el historial de la sesión actual
+    let chatHistory = [];
+    // ---------------------
+
     chatForm.addEventListener("submit", async (e) => {
         e.preventDefault(); 
         
@@ -29,8 +34,6 @@ document.addEventListener("DOMContentLoaded", () => {
         chatBox.scrollTop = chatBox.scrollHeight;
 
         try {
-            // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
-            // Ahora llamamos a nuestra propia API local que Vercel creará
             const backendUrl = '/api/chat'; 
             
             const response = await fetch(backendUrl, { 
@@ -38,9 +41,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ prompt: text }), 
+                // --- ¡CAMBIO AQUÍ! ---
+                // Enviamos el prompt actual Y el historial
+                body: JSON.stringify({ 
+                    prompt: text,
+                    history: chatHistory 
+                }), 
+                // --- FIN DEL CAMBIO ---
             });
-            // --- FIN DEL CAMBIO ---
 
             if (!response.ok) {
                 throw new Error(`Error del servidor: ${response.statusText}`);
@@ -50,6 +58,12 @@ document.addEventListener("DOMContentLoaded", () => {
             
             chatBox.removeChild(spinnerElement);
             addMessage(data.reply, "ia");
+
+            // --- ¡CAMBIO AQUÍ! ---
+            // Guardamos la interacción en el historial para el próximo envío
+            chatHistory.push({ role: "user", text: text });
+            chatHistory.push({ role: "ia", text: data.reply });
+            // ---------------------
 
         } catch (error) {
             console.error("Error:", error);
@@ -62,13 +76,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // ... (Tu función addMessage() sigue exactamente igual aquí abajo) ...
+    // Tu función addMessage() sigue exactamente igual aquí abajo
     function addMessage(text, sender) {
         const messageElement = document.createElement("div");
         messageElement.classList.add("message", sender);
         
         const textElement = document.createElement("p");
 
+        // ... (el resto de tu función addMessage no cambia) ...
         let escapedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const parts = escapedText.split('```');
         let processedText = '';
