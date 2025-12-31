@@ -4,10 +4,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const chatBox = document.getElementById("chat-box");
     const sendButton = document.getElementById("send-button");
 
-    // --- ¡CAMBIO AQUÍ! ---
-    // Array para guardar el historial de la sesión actual
-    let chatHistory = [];
-    // ---------------------
+    // ---------------------------------------------------------
+    // 1. CONFIGURACIÓN DEL COMPORTAMIENTO (El truco de la brevedad)
+    // ---------------------------------------------------------
+    // Iniciamos el historial con un mensaje que el usuario NO ve,
+    // pero que la IA sí lee para saber cómo comportarse.
+    let chatHistory = [
+        {
+            role: "user", 
+            text: "Instrucción de sistema: Por favor, responde siempre de forma breve, directa y concisa. Evita rodeos innecesarios. Solo da respuestas largas o detalladas si el tema es muy complejo o si yo te pido explícitamente una explicación robusta."
+        }
+    ];
 
     chatForm.addEventListener("submit", async (e) => {
         e.preventDefault(); 
@@ -15,12 +22,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const text = userInput.value.trim();
         if (text === "") return; 
 
+        // Desactivamos interfaz mientras piensa
         userInput.disabled = true;
         sendButton.disabled = true;
 
+        // Mostramos el mensaje del usuario en pantalla
         addMessage(text, "user");
         userInput.value = ""; 
 
+        // Creamos el spinner de carga
         const spinnerElement = document.createElement("div");
         spinnerElement.classList.add("message", "ia"); 
         spinnerElement.innerHTML = `
@@ -41,13 +51,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                // --- ¡CAMBIO AQUÍ! ---
-                // Enviamos el prompt actual Y el historial
+                // Enviamos el prompt actual Y todo el historial (incluida la instrucción oculta)
                 body: JSON.stringify({ 
                     prompt: text,
                     history: chatHistory 
                 }), 
-                // --- FIN DEL CAMBIO ---
             });
 
             if (!response.ok) {
@@ -56,35 +64,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
             
+            // Quitamos el spinner y mostramos la respuesta
             chatBox.removeChild(spinnerElement);
             addMessage(data.reply, "ia");
 
-            // --- ¡CAMBIO AQUÍ! ---
-            // Guardamos la interacción en el historial para el próximo envío
+            // ---------------------------------------------------------
+            // 2. ACTUALIZACIÓN DEL HISTORIAL
+            // ---------------------------------------------------------
+            // Guardamos lo que se acaba de hablar para que la IA tenga memoria
+            // en la siguiente vuelta.
             chatHistory.push({ role: "user", text: text });
             chatHistory.push({ role: "ia", text: data.reply });
-            // ---------------------
 
         } catch (error) {
             console.error("Error:", error);
-            chatBox.removeChild(spinnerElement);
+            if(chatBox.contains(spinnerElement)) {
+                chatBox.removeChild(spinnerElement);
+            }
             addMessage("Lo siento, algo salió mal. Por favor, intenta de nuevo.", "ia");
         } finally {
+            // Reactivamos la interfaz
             userInput.disabled = false;
             sendButton.disabled = false;
             userInput.focus();
         }
     });
 
-    // Tu función addMessage() sigue exactamente igual aquí abajo
+    // Función para mostrar mensajes en el HTML (con soporte básico de Markdown)
     function addMessage(text, sender) {
         const messageElement = document.createElement("div");
         messageElement.classList.add("message", sender);
         
         const textElement = document.createElement("p");
 
-        // ... (el resto de tu función addMessage no cambia) ...
+        // Escapamos HTML básico para evitar inyecciones
         let escapedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        // Procesamos Markdown simple (negritas y bloques de código)
         const parts = escapedText.split('```');
         let processedText = '';
 
@@ -93,8 +109,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 // TEXTO NORMAL
                 let regularText = part;
                 regularText = regularText.replace(/\n/g, '<br>');
-                regularText = regularText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-                regularText = regularText.replace(/(^|<br>)\* /g, '$1• ');
+                regularText = regularText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>'); // Negritas
+                regularText = regularText.replace(/(^|<br>)\* /g, '$1• '); // Listas
                 processedText += regularText;
             } else {
                 // BLOQUE DE CÓDIGO
