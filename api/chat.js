@@ -1,54 +1,59 @@
-// Importamos la IA de Google
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+// 1. Importamos la librería oficial de OpenAI
+import OpenAI from 'openai';
 
-// Creamos el cliente de IA usando la clave secreta
-const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+// 2. Creamos el cliente usando la variable de entorno
+// Asegúrate de llamar a tu variable OPENAI_API_KEY en Vercel
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-// Esta es la función principal que Vercel ejecutará
 export default async function handler(req, res) {
-    // 1. Solo permitimos peticiones POST
+    // Solo permitimos peticiones POST
     if (req.method !== 'POST') {
         return res.status(405).json({ reply: 'Método no permitido' });
     }
 
     try {
-        // --- ¡CAMBIOS AQUÍ! ---
-        
-        // 2. Leemos el prompt Y EL HISTORIAL del usuario
+        // Leemos el prompt y el historial
         const { prompt: userPrompt, history: incomingHistory } = req.body;
 
         if (!userPrompt) {
             return res.status(400).json({ reply: 'No se recibió ningún prompt.' });
         }
 
-        // 3. Obtenemos el modelo
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        // --- CAMBIOS CLAVE PARA OPENAI ---
 
-        // 4. Mapeamos el historial del frontend al formato que espera la API
-        // La API usa "user" (igual) y "model" (en lugar de "ia")
-        const mappedHistory = (incomingHistory || []).map(msg => ({
-            role: msg.role === 'ia' ? 'model' : 'user', // Convertimos 'ia' a 'model'
-            parts: [{ text: msg.text }]
+        // 3. Mapeamos el historial.
+        // OpenAI usa roles: "user" y "assistant" (en vez de "model").
+        // OpenAI usa contenido directo en "content" (no usa "parts").
+        const messages = (incomingHistory || []).map(msg => ({
+            role: msg.role === 'ia' ? 'assistant' : 'user', 
+            content: msg.text
         }));
 
-        // 5. Iniciamos una sesión de chat con el historial
-        const chat = model.startChat({
-            history: mappedHistory,
+        // 4. Agregamos el prompt actual del usuario al final de la lista de mensajes
+        // A diferencia de Gemini que usa .sendMessage, en OpenAI enviamos todo junto.
+        messages.push({
+            role: 'user',
+            content: userPrompt
         });
 
-        // 6. Enviamos el nuevo mensaje dentro de esa sesión de chat
-        const result = await chat.sendMessage(userPrompt);
-        
-        // --- FIN DE LOS CAMBIOS ---
-        
-        const response = await result.response;
-        const text = response.text();
+        // 5. Hacemos la petición a OpenAI
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o", // O usa "gpt-3.5-turbo" si quieres algo más barato
+            messages: messages,
+        });
 
-        // 7. Enviamos la respuesta de vuelta al frontend
+        // 6. Extraemos la respuesta
+        const text = completion.choices[0].message.content;
+
+        // --- FIN DE LOS CAMBIOS ---
+
+        // Enviamos la respuesta
         res.status(200).json({ reply: text });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ reply: 'Error al procesar la solicitud de la IA.' });
+        console.error("Error en OpenAI:", error);
+        res.status(500).json({ reply: 'Error al procesar la solicitud con OpenAI.' });
     }
 }
