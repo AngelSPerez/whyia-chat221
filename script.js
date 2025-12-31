@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let chatHistory = [
         {
             role: "user", 
-            text: "Instrucción de sistema: Por favor, responde siempre de forma breve, directa y concisa. Evita rodeos innecesarios. Solo da respuestas largas o detalladas si el tema es muy complejo o si yo te pido explícitamente una explicación robusta."
+            text: "Instrucción de sistema: Por favor, responde de forma breve, directa y concisa a la mayoria de preguntas, pero no le quites la humanidad a la conversacion se tambien amable. Solo da respuestas largas o detalladas si el tema es muy complejo o si yo te pido explícitamente una explicación robusta."
         }
     ];
 
