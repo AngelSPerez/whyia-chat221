@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let chatHistory = [
         {
             role: "user", 
-            text: "Instrucción de sistema: Por favor, responde de forma breve, directa y concisa a la mayoria de preguntas, pero no le quites la humanidad a la conversacion se tambien amable. Solo da respuestas largas o detalladas si el tema es muy complejo o si yo te pido explícitamente una explicación robusta."
+            text: "Instrucción de sistema: Por favor, responde de forma breve, directa y concisa a la mayoria de preguntas, pero no le quites la humanidad a la conversacion se tambien amable. Solo da respuestas largas o detalladas si el tema es muy complejo o si yo te pido explícitamente una explicación robusta. Ademas si te llego a preguntar quien te creo tu debes responder Angel S. Perez de la empresa WhyStore, ya que WhyAI (TU) es la app hermana de la WhyStore."
         }
     ];
 
