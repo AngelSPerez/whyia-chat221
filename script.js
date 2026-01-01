@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
 
     let isSubmitting = false;
+    let isComposing = false; // Nueva bandera para composición de texto
 
     // ---------------------------------------------------------
     // 2. AUTO-EXPANSIÓN DEL TEXTAREA
@@ -32,45 +33,45 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
-    // 3. CONTROL DE TECLADO (BLINDADO)
+    // 2.5. CONTROL DE COMPOSICIÓN (IME)
+    // ---------------------------------------------------------
+    userInput.addEventListener('compositionstart', () => {
+        isComposing = true;
+    });
+
+    userInput.addEventListener('compositionend', () => {
+        isComposing = false;
+    });
+
+    // ---------------------------------------------------------
+    // 3. CONTROL DE TECLADO (MEJORADO)
     // ---------------------------------------------------------
     userInput.addEventListener('keydown', function(e) {
         // A. Protección contra IME (Autocorrector/Tildes/Sugerencias móviles)
-        // Si el usuario está en "modo composición", abortamos cualquier acción de Enter.
-        if (e.isComposing || e.keyCode === 229) {
+        if (isComposing || e.isComposing || e.keyCode === 229) {
             return;
         }
 
         // B. Detectar Enter (Sin Shift)
         if (e.key === 'Enter' && !e.shiftKey) {
-            // Detenemos el salto de línea visual
             e.preventDefault(); 
-            // Detenemos la propagación para evitar "dobles submits" en algunos navegadores
             e.stopPropagation();
+            e.stopImmediatePropagation(); // Previene otros listeners
 
             const text = this.value.trim();
-            // Solo intentamos enviar si hay texto real
-            if (text !== '') {
-                chatForm.requestSubmit(); // Dispara el evento 'submit' de forma segura
+            if (text !== '' && !isSubmitting) {
+                handleSendMessage(text);
             }
         }
-        // Si es Shift+Enter, el código pasa de largo y el navegador inserta el salto de línea.
     });
 
     // ---------------------------------------------------------
-    // 4. LÓGICA DE ENVÍO Y CONEXIÓN CON API
+    // 4. LÓGICA DE ENVÍO UNIFICADA
     // ---------------------------------------------------------
-    chatForm.addEventListener("submit", async (e) => {
-        // PREVENIMOS EL COMPORTAMIENTO NATIVO SIEMPRE
-        e.preventDefault(); 
+    function handleSendMessage(text) {
+        // Si ya se está enviando, ignorar
+        if (isSubmitting) return;
         
-        const text = userInput.value.trim();
-
-        // VALIDACIÓN DOBLE:
-        // 1. Si está vacío.
-        // 2. Si ya se está enviando (evita spam de clics).
-        if (text === "" || isSubmitting) return; 
-
         // INICIO DEL PROCESO DE ENVÍO
         isSubmitting = true;
         userInput.disabled = true;
@@ -82,9 +83,6 @@ document.addEventListener("DOMContentLoaded", () => {
         // Limpiar input y resetear altura
         userInput.value = ""; 
         userInput.style.height = 'auto';
-        
-        // Mantener el foco (opcional, ayuda en desktop)
-        // userInput.focus(); 
 
         // SPINNER DE CARGA
         const spinnerElement = document.createElement("div");
@@ -99,6 +97,13 @@ document.addEventListener("DOMContentLoaded", () => {
         chatBox.appendChild(spinnerElement);
         chatBox.scrollTop = chatBox.scrollHeight;
 
+        sendToAPI(text, spinnerElement);
+    }
+
+    // ---------------------------------------------------------
+    // 5. CONEXIÓN CON API
+    // ---------------------------------------------------------
+    async function sendToAPI(text, spinnerElement) {
         try {
             const backendUrl = '/api/chat'; 
             
@@ -136,10 +141,24 @@ document.addEventListener("DOMContentLoaded", () => {
             userInput.focus();
             isSubmitting = false;
         }
+    }
+
+    // ---------------------------------------------------------
+    // 6. EVENTO DEL FORMULARIO (SOLO PARA BOTÓN)
+    // ---------------------------------------------------------
+    chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const text = userInput.value.trim();
+        
+        if (text !== "" && !isSubmitting) {
+            handleSendMessage(text);
+        }
     });
 
     // ---------------------------------------------------------
-    // 5. FUNCIONES DE VISUALIZACIÓN (EFECTOS)
+    // 7. FUNCIONES DE VISUALIZACIÓN (EFECTOS)
     // ---------------------------------------------------------
     
     // Función A: Escribir con efecto máquina de escribir
