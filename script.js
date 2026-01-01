@@ -24,14 +24,18 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
     // ENVIAR CON ENTER (Shift+Enter para nueva línea)
     // ---------------------------------------------------------
-    userInput.addEventListener('keydown', function(e) {
+    userInput.addEventListener('keypress', function(e) {
+        // keypress solo se dispara con teclas reales del usuario, no con wraps automáticos
         // Si presiona Enter sin Shift, enviamos el mensaje
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault(); // Evitamos el salto de línea
             
             // Validamos que haya texto antes de enviar
-            if (this.value.trim() !== '') {
-                chatForm.dispatchEvent(new Event('submit')); // Disparamos el submit del form
+            const text = this.value.trim();
+            if (text !== '') {
+                // Creamos un evento de submit manual
+                const submitEvent = new Event('submit', { cancelable: true });
+                chatForm.dispatchEvent(submitEvent);
             }
         }
         // Si presiona Shift+Enter, permitimos el salto de línea (comportamiento por defecto)
