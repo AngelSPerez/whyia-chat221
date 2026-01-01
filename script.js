@@ -15,6 +15,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
+    // ENVIAR CON ENTER (Shift+Enter para nueva línea)
+    // ---------------------------------------------------------
+    userInput.addEventListener('keydown', function(e) {
+        // Si presiona Enter sin Shift, enviamos el mensaje
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); // Evitamos el salto de línea
+            chatForm.dispatchEvent(new Event('submit')); // Disparamos el submit del form
+        }
+        // Si presiona Shift+Enter, permitimos el salto de línea (comportamiento por defecto)
+    });
+
+    // ---------------------------------------------------------
     // 1. CONFIGURACIÓN DEL COMPORTAMIENTO (El truco de la brevedad)
     // ---------------------------------------------------------
     // Iniciamos el historial con un mensaje que el usuario NO ve,
