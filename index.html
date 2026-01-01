@@ -15,8 +15,11 @@
             </div>
         </div>
         <form class="input-area" id="chat-form">
-            <input type="text" id="user-input" placeholder="Escribe tu mensaje..." autocomplete="off">
-            <button id="send-button" type="submit">Enviar</button>
+            <div class="input-wrapper">
+                <textarea id="user-input" placeholder="Escribe tu mensaje..." autocomplete="off" rows="1"></textarea>
+                <button id="send-button" type="submit">Enviar</button>
+            </div>
+            <div class="disclaimer">WhyAI puede cometer errores.</div>
         </form>
     </div>
     <script src="script.js"></script>
