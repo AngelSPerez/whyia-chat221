@@ -100,7 +100,7 @@ h1 {
     resize: none; /* Deshabilitamos el resize manual */
     min-height: 24px; /* Altura mínima ajustada */
     max-height: 200px; /* Altura máxima antes del scroll */
-    overflow-y: auto; /* Scroll cuando supera max-height */
+    overflow-y: hidden; /* Oculto por defecto, se activa con JavaScript */
     line-height: 1.5;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     box-sizing: border-box; /* Incluye padding y border en el cálculo de altura */
