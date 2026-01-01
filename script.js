@@ -16,7 +16,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
 
     let isSubmitting = false;
-    let isComposing = false; // Nueva bandera para composición de texto
+    let isComposing = false;
+    let lastSubmitTime = 0; // Timestamp del último envío
+    const DEBOUNCE_TIME = 300; // Milisegundos de protección contra doble click
 
     // ---------------------------------------------------------
     // 2. AUTO-EXPANSIÓN DEL TEXTAREA
@@ -56,21 +58,61 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault(); 
             e.stopPropagation();
-            e.stopImmediatePropagation(); // Previene otros listeners
+            e.stopImmediatePropagation();
 
             const text = this.value.trim();
-            if (text !== '' && !isSubmitting) {
+            if (text !== '') {
                 handleSendMessage(text);
             }
         }
     });
 
     // ---------------------------------------------------------
-    // 4. LÓGICA DE ENVÍO UNIFICADA
+    // 4. PREVENIR SUBMIT POR DEFECTO DEL FORMULARIO
+    // ---------------------------------------------------------
+    chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        // Solo procesar si viene del botón (no del Enter)
+        // El Enter ya se maneja en keydown
+        return false;
+    });
+
+    // ---------------------------------------------------------
+    // 5. EVENTO DEL BOTÓN DE ENVÍO
+    // ---------------------------------------------------------
+    sendButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const text = userInput.value.trim();
+        if (text !== '') {
+            handleSendMessage(text);
+        }
+    });
+
+    // ---------------------------------------------------------
+    // 6. LÓGICA DE ENVÍO UNIFICADA CON DEBOUNCE
     // ---------------------------------------------------------
     function handleSendMessage(text) {
+        const currentTime = Date.now();
+        
+        // PROTECCIÓN ANTI-REBOTE: Si se intentó enviar hace menos de 300ms, ignorar
+        if (currentTime - lastSubmitTime < DEBOUNCE_TIME) {
+            console.log('Envío bloqueado por debounce');
+            return;
+        }
+        
         // Si ya se está enviando, ignorar
-        if (isSubmitting) return;
+        if (isSubmitting) {
+            console.log('Envío bloqueado: ya hay uno en proceso');
+            return;
+        }
+        
+        // Actualizar timestamp
+        lastSubmitTime = currentTime;
         
         // INICIO DEL PROCESO DE ENVÍO
         isSubmitting = true;
@@ -101,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ---------------------------------------------------------
-    // 5. CONEXIÓN CON API
+    // 7. CONEXIÓN CON API
     // ---------------------------------------------------------
     async function sendToAPI(text, spinnerElement) {
         try {
@@ -144,21 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ---------------------------------------------------------
-    // 6. EVENTO DEL FORMULARIO (SOLO PARA BOTÓN)
-    // ---------------------------------------------------------
-    chatForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const text = userInput.value.trim();
-        
-        if (text !== "" && !isSubmitting) {
-            handleSendMessage(text);
-        }
-    });
-
-    // ---------------------------------------------------------
-    // 7. FUNCIONES DE VISUALIZACIÓN (EFECTOS)
+    // 8. FUNCIONES DE VISUALIZACIÓN (EFECTOS)
     // ---------------------------------------------------------
     
     // Función A: Escribir con efecto máquina de escribir
