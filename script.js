@@ -12,6 +12,13 @@ document.addEventListener("DOMContentLoaded", () => {
         this.style.height = 'auto';
         // Ajustamos la altura al contenido (limitado por max-height en CSS)
         this.style.height = this.scrollHeight + 'px';
+        
+        // Activamos el scroll solo cuando el contenido supera el max-height
+        if (this.scrollHeight > 200) {
+            this.style.overflowY = 'auto';
+        } else {
+            this.style.overflowY = 'hidden';
+        }
     });
 
     // ---------------------------------------------------------
@@ -21,7 +28,11 @@ document.addEventListener("DOMContentLoaded", () => {
         // Si presiona Enter sin Shift, enviamos el mensaje
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault(); // Evitamos el salto de línea
-            chatForm.dispatchEvent(new Event('submit')); // Disparamos el submit del form
+            
+            // Validamos que haya texto antes de enviar
+            if (this.value.trim() !== '') {
+                chatForm.dispatchEvent(new Event('submit')); // Disparamos el submit del form
+            }
         }
         // Si presiona Shift+Enter, permitimos el salto de línea (comportamiento por defecto)
     });
@@ -38,11 +49,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     ];
 
+    // Variable para prevenir envíos múltiples
+    let isSubmitting = false;
+
     chatForm.addEventListener("submit", async (e) => {
         e.preventDefault(); 
         
         const text = userInput.value.trim();
-        if (text === "") return; 
+        if (text === "" || isSubmitting) return; 
+
+        // Marcamos que estamos enviando
+        isSubmitting = true;
 
         // Desactivamos interfaz mientras piensa
         userInput.disabled = true;
@@ -115,6 +132,8 @@ document.addEventListener("DOMContentLoaded", () => {
             userInput.disabled = false;
             sendButton.disabled = false;
             userInput.focus();
+            // Liberamos el flag de envío
+            isSubmitting = false;
         }
     });
 
