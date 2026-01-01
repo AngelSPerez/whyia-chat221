@@ -17,13 +17,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let isSubmitting = false;
     let isComposing = false;
-    let lastSubmitTime = 0; // Timestamp del último envío
-    const DEBOUNCE_TIME = 300; // Milisegundos de protección contra doble click
+    let lastSubmitTime = 0;
+    const DEBOUNCE_TIME = 500; // Aumentado a 500ms para mayor seguridad
 
     // ---------------------------------------------------------
     // 2. AUTO-EXPANSIÓN DEL TEXTAREA
     // ---------------------------------------------------------
-    userInput.addEventListener('input', function() {
+    userInput.addEventListener('input', function(e) {
+        // NO hacer nada si se está enviando un mensaje
+        if (isSubmitting) {
+            return;
+        }
+        
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
         
@@ -35,50 +40,96 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
-    // 2.5. CONTROL DE COMPOSICIÓN (IME)
+    // 2.5. CONTROL DE COMPOSICIÓN (IME) - MEJORADO
     // ---------------------------------------------------------
-    userInput.addEventListener('compositionstart', () => {
+    userInput.addEventListener('compositionstart', (e) => {
         isComposing = true;
+        console.log('Composición iniciada');
     });
 
-    userInput.addEventListener('compositionend', () => {
-        isComposing = false;
+    userInput.addEventListener('compositionend', (e) => {
+        // Agregamos un delay para asegurarnos de que el texto esté completamente procesado
+        setTimeout(() => {
+            isComposing = false;
+            console.log('Composición finalizada');
+        }, 50);
     });
 
     // ---------------------------------------------------------
-    // 3. CONTROL DE TECLADO (MEJORADO)
+    // 3. CONTROL DE TECLADO (ULTRA PROTEGIDO)
     // ---------------------------------------------------------
+    let enterPressed = false; // Nueva bandera para rastrear Enter
+
     userInput.addEventListener('keydown', function(e) {
-        // A. Protección contra IME (Autocorrector/Tildes/Sugerencias móviles)
+        // A. MÁXIMA PROTECCIÓN contra IME
         if (isComposing || e.isComposing || e.keyCode === 229) {
+            console.log('Bloqueado: composición activa');
             return;
         }
 
-        // B. Detectar Enter (Sin Shift)
+        // B. Si ya se está enviando, bloquear TODO
+        if (isSubmitting) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('Bloqueado: envío en proceso');
+            return;
+        }
+
+        // C. Detectar Enter (Sin Shift)
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault(); 
             e.stopPropagation();
             e.stopImmediatePropagation();
 
-            const text = this.value.trim();
-            if (text !== '') {
-                handleSendMessage(text);
+            // Marcamos que Enter fue presionado
+            if (!enterPressed) {
+                enterPressed = true;
+                console.log('Enter presionado');
+                
+                const text = this.value.trim();
+                if (text !== '') {
+                    handleSendMessage(text);
+                }
+                
+                // Reseteamos la bandera después de un delay
+                setTimeout(() => {
+                    enterPressed = false;
+                }, DEBOUNCE_TIME);
+            } else {
+                console.log('Enter bloqueado: ya fue presionado');
             }
         }
     });
 
+    // Prevenir keyup de Enter también
+    userInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        }
+    });
+
     // ---------------------------------------------------------
-    // 4. PREVENIR SUBMIT POR DEFECTO DEL FORMULARIO
+    // 4. PREVENIR SUBMIT DEL FORMULARIO COMPLETAMENTE
     // ---------------------------------------------------------
     chatForm.addEventListener("submit", (e) => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        
-        // Solo procesar si viene del botón (no del Enter)
-        // El Enter ya se maneja en keydown
+        console.log('Submit del formulario bloqueado');
         return false;
     });
+
+    // Capturar submit en fase de captura también
+    chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('Submit del formulario bloqueado (captura)');
+        return false;
+    }, true);
 
     // ---------------------------------------------------------
     // 5. EVENTO DEL BOTÓN DE ENVÍO
@@ -86,7 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
     sendButton.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         
+        console.log('Botón clickeado');
         const text = userInput.value.trim();
         if (text !== '') {
             handleSendMessage(text);
@@ -94,37 +147,60 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
-    // 6. LÓGICA DE ENVÍO UNIFICADA CON DEBOUNCE
+    // 6. LÓGICA DE ENVÍO UNIFICADA CON MÚLTIPLES PROTECCIONES
     // ---------------------------------------------------------
     function handleSendMessage(text) {
         const currentTime = Date.now();
         
-        // PROTECCIÓN ANTI-REBOTE: Si se intentó enviar hace menos de 300ms, ignorar
+        console.log('handleSendMessage llamado con:', text);
+        console.log('isSubmitting:', isSubmitting);
+        console.log('Tiempo desde último envío:', currentTime - lastSubmitTime, 'ms');
+        
+        // PROTECCIÓN 1: Debounce por tiempo
         if (currentTime - lastSubmitTime < DEBOUNCE_TIME) {
-            console.log('Envío bloqueado por debounce');
+            console.log('❌ BLOQUEADO: Debounce de tiempo');
             return;
         }
         
-        // Si ya se está enviando, ignorar
+        // PROTECCIÓN 2: Ya se está enviando
         if (isSubmitting) {
-            console.log('Envío bloqueado: ya hay uno en proceso');
+            console.log('❌ BLOQUEADO: Envío en proceso');
+            return;
+        }
+
+        // PROTECCIÓN 3: Texto vacío o solo espacios
+        if (!text || text.trim() === '') {
+            console.log('❌ BLOQUEADO: Texto vacío');
+            return;
+        }
+
+        // PROTECCIÓN 4: Composición activa
+        if (isComposing) {
+            console.log('❌ BLOQUEADO: Composición activa');
             return;
         }
         
-        // Actualizar timestamp
+        console.log('✅ ENVIANDO MENSAJE');
+        
+        // Actualizar timestamp INMEDIATAMENTE
         lastSubmitTime = currentTime;
         
-        // INICIO DEL PROCESO DE ENVÍO
+        // Marcar como enviando INMEDIATAMENTE
         isSubmitting = true;
+        
+        // Deshabilitar controles INMEDIATAMENTE
         userInput.disabled = true;
         sendButton.disabled = true;
 
-        // Mostrar mensaje del usuario
-        addMessage(text, "user");
-        
-        // Limpiar input y resetear altura
+        // Capturar el texto antes de limpiar
+        const messageText = text;
+
+        // Limpiar input INMEDIATAMENTE
         userInput.value = ""; 
         userInput.style.height = 'auto';
+
+        // Mostrar mensaje del usuario
+        addMessage(messageText, "user");
 
         // SPINNER DE CARGA
         const spinnerElement = document.createElement("div");
@@ -139,7 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
         chatBox.appendChild(spinnerElement);
         chatBox.scrollTop = chatBox.scrollHeight;
 
-        sendToAPI(text, spinnerElement);
+        sendToAPI(messageText, spinnerElement);
     }
 
     // ---------------------------------------------------------
@@ -177,11 +253,14 @@ document.addEventListener("DOMContentLoaded", () => {
             if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
             addMessage("Lo siento, algo salió mal. Intenta de nuevo.", "ia");
         } finally {
-            // REACTIVAR INTERFAZ
-            userInput.disabled = false;
-            sendButton.disabled = false;
-            userInput.focus();
-            isSubmitting = false;
+            // REACTIVAR INTERFAZ después de un pequeño delay
+            setTimeout(() => {
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+                isSubmitting = false;
+                console.log('Interfaz reactivada');
+            }, 100);
         }
     }
 
