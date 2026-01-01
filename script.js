@@ -5,6 +5,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const sendButton = document.getElementById("send-button");
 
     // ---------------------------------------------------------
+    // AUTO-EXPANSIÓN DEL TEXTAREA
+    // ---------------------------------------------------------
+    userInput.addEventListener('input', function() {
+        // Reseteamos la altura para calcular correctamente
+        this.style.height = 'auto';
+        // Ajustamos la altura al contenido (limitado por max-height en CSS)
+        this.style.height = this.scrollHeight + 'px';
+    });
+
+    // ---------------------------------------------------------
     // 1. CONFIGURACIÓN DEL COMPORTAMIENTO (El truco de la brevedad)
     // ---------------------------------------------------------
     // Iniciamos el historial con un mensaje que el usuario NO ve,
@@ -29,6 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // Mostramos el mensaje del usuario en pantalla
         addMessage(text, "user");
         userInput.value = ""; 
+        // Reseteamos la altura del textarea después de enviar
+        userInput.style.height = 'auto';
 
         // Creamos el spinner de carga
         const spinnerElement = document.createElement("div");
@@ -64,9 +76,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
             
-            // Quitamos el spinner y mostramos la respuesta
+            // Quitamos el spinner
             chatBox.removeChild(spinnerElement);
-            addMessage(data.reply, "ia");
+            
+            // ---------------------------------------------------------
+            // EFECTO DE ESCRITURA TIPO MÁQUINA DE ESCRIBIR
+            // ---------------------------------------------------------
+            await addMessageWithTyping(data.reply, "ia");
 
             // ---------------------------------------------------------
             // 2. ACTUALIZACIÓN DEL HISTORIAL
@@ -90,7 +106,128 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Función para mostrar mensajes en el HTML (con soporte básico de Markdown)
+    // ---------------------------------------------------------
+    // FUNCIÓN PARA AÑADIR MENSAJE CON EFECTO DE ESCRITURA
+    // ---------------------------------------------------------
+    async function addMessageWithTyping(text, sender) {
+        const messageElement = document.createElement("div");
+        messageElement.classList.add("message", sender);
+        
+        const textElement = document.createElement("p");
+        messageElement.appendChild(textElement);
+        chatBox.appendChild(messageElement);
+
+        // Procesamos el texto con Markdown
+        let escapedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const parts = escapedText.split('```');
+        
+        // Velocidad de escritura (milisegundos por carácter)
+        const typingSpeed = 15; // Ajusta este valor para más rápido (menor) o más lento (mayor)
+
+        for (let i = 0; i < parts.length; i++) {
+            if (i % 2 === 0) {
+                // TEXTO NORMAL - lo escribimos carácter por carácter
+                let regularText = parts[i];
+                regularText = regularText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>'); // Negritas
+                regularText = regularText.replace(/(^|<br>)\* /g, '$1• '); // Listas
+                
+                // Para el efecto de escritura, procesamos el HTML de forma especial
+                await typeHTML(textElement, regularText, typingSpeed);
+                
+            } else {
+                // BLOQUE DE CÓDIGO - lo mostramos completo (sin efecto de escritura)
+                let codeText = parts[i];
+                if (codeText.startsWith('\n')) codeText = codeText.substring(1);
+                if (codeText.endsWith('\n')) codeText = codeText.substring(0, codeText.length - 1);
+                
+                const codeBlock = document.createElement('pre');
+                const codeElement = document.createElement('code');
+                codeElement.textContent = codeText;
+                codeBlock.appendChild(codeElement);
+                textElement.appendChild(codeBlock);
+            }
+        }
+
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // ---------------------------------------------------------
+    // FUNCIÓN AUXILIAR PARA ESCRIBIR HTML CARÁCTER POR CARÁCTER
+    // ---------------------------------------------------------
+    function typeHTML(element, html, speed) {
+        return new Promise((resolve) => {
+            let tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            
+            // Convertimos el HTML en un array de nodos y texto
+            let nodes = Array.from(tempDiv.childNodes);
+            let currentIndex = 0;
+            
+            function typeNextNode() {
+                if (currentIndex >= nodes.length) {
+                    resolve();
+                    return;
+                }
+                
+                let node = nodes[currentIndex];
+                
+                if (node.nodeType === Node.TEXT_NODE) {
+                    // Es texto plano - lo escribimos carácter por carácter
+                    let text = node.textContent;
+                    let charIndex = 0;
+                    
+                    function typeNextChar() {
+                        if (charIndex < text.length) {
+                            let char = text[charIndex];
+                            // Si es un salto de línea, lo convertimos a <br>
+                            if (char === '\n') {
+                                element.appendChild(document.createElement('br'));
+                            } else {
+                                element.appendChild(document.createTextNode(char));
+                            }
+                            charIndex++;
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                            setTimeout(typeNextChar, speed);
+                        } else {
+                            currentIndex++;
+                            typeNextNode();
+                        }
+                    }
+                    typeNextChar();
+                    
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    // Es un elemento HTML (como <b>, <br>, etc.)
+                    if (node.tagName === 'BR') {
+                        element.appendChild(document.createElement('br'));
+                        currentIndex++;
+                        setTimeout(typeNextNode, speed);
+                    } else {
+                        // Para elementos como <b>, creamos el elemento y escribimos su contenido
+                        let newElement = document.createElement(node.tagName);
+                        element.appendChild(newElement);
+                        
+                        // Copiamos atributos si los hay
+                        Array.from(node.attributes).forEach(attr => {
+                            newElement.setAttribute(attr.name, attr.value);
+                        });
+                        
+                        // Escribimos el contenido interno
+                        typeHTML(newElement, node.innerHTML, speed).then(() => {
+                            currentIndex++;
+                            typeNextNode();
+                        });
+                    }
+                } else {
+                    currentIndex++;
+                    typeNextNode();
+                }
+            }
+            
+            typeNextNode();
+        });
+    }
+
+    // Función para mostrar mensajes instantáneamente (para mensajes del usuario)
     function addMessage(text, sender) {
         const messageElement = document.createElement("div");
         messageElement.classList.add("message", sender);
