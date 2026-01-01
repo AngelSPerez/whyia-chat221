@@ -14,9 +14,18 @@
                 <p>Hola, soy WhyAI. ¿En qué puedo ayudarte hoy?</p>
             </div>
         </div>
+
         <form class="input-area" id="chat-form">
+            <input type="text" name="dummy" style="position:absolute; opacity:0; pointer-events:none; width:0; height:0;" tabindex="-1">
+
             <div class="input-wrapper">
-                <textarea id="user-input" placeholder="Escribe tu mensaje..." autocomplete="off" rows="1"></textarea>
+                <textarea 
+                    id="user-input" 
+                    placeholder="Escribe tu mensaje..." 
+                    autocomplete="off" 
+                    spellcheck="false" 
+                    enterkeyhint="enter"
+                    rows="1"></textarea>
                 <button id="send-button" type="submit">Enviar</button>
             </div>
             <div class="disclaimer">WhyAI puede cometer errores. Comprueba la información importante.</div>
