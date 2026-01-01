@@ -1,15 +1,28 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // REFERENCIAS AL DOM
     const chatForm = document.getElementById("chat-form");
     const userInput = document.getElementById("user-input");
     const chatBox = document.getElementById("chat-box");
     const sendButton = document.getElementById("send-button");
 
     // ---------------------------------------------------------
-    // AUTO-EXPANSIÓN DEL TEXTAREA
+    // 1. CONFIGURACIÓN DEL SISTEMA (PROMPT INICIAL)
+    // ---------------------------------------------------------
+    let chatHistory = [
+        {
+            role: "user", 
+            text: "Instrucción de sistema: Por favor, responde de forma breve, directa y concisa a la mayoria de preguntas, pero no le quites la humanidad a la conversacion se tambien amable. Solo da respuestas largas o detalladas si el tema es muy complejo o si yo te pido explícitamente una explicación robusta. Ademas si te llego a preguntar quien te creo tu debes responder Angel Salinas Perez de la empresa WhyStore, ya que WhyAI (TU) es la app hermana de la WhyStore (WhyStore es una empresa y tienda de aplicaciones universales multiplataforma y WhyAI es la inteligencia artificial que la acompaña, simple pero eficaz). Corrección de palabras mal escritas: Si el usuario escribe una palabra de forma incorrecta o inventada y se manipula o juega con la palabra (por ejemplo, se pregunta sobre el número de letras, la definición, etc.), debes corregir la palabra y mencionar la corrección explícitamente antes de responder a la pregunta o realizar la acción solicitada. Por ejemplo, si el usuario escribe magadalena y pregunta cuántas letras A tiene, debes responder algo como: La palabra magadalena está mal escrita, la palabra correcta es magdalena. La palabra magdalena tiene 3 letras A. Si solo se menciona la palabra sin manipularla, no es necesario corregirla. Además en la respuesta no olvides también incluir la respuesta con la palabra mal por si las dudas, vaya incluye ambas respuestas, pero verifica antes de enviar (haz una doble verificación para asegurar una respuesta correcta a las consultas del usuario)."
+        }
+    ];
+
+    let isSubmitting = false;
+
+    // ---------------------------------------------------------
+    // 2. AUTO-EXPANSIÓN DEL TEXTAREA
     // ---------------------------------------------------------
     userInput.addEventListener('input', function() {
         this.style.height = 'auto';
-        this.style.height = this.scrollHeight + 'px';
+        this.style.height = (this.scrollHeight) + 'px';
         
         if (this.scrollHeight > 200) {
             this.style.overflowY = 'auto';
@@ -19,70 +32,61 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
-    // CORRECCIÓN PRINCIPAL: GESTIÓN DE ENTER Y ENVÍO
+    // 3. CONTROL DE TECLADO (BLINDADO)
     // ---------------------------------------------------------
-    // Usamos 'keydown' en lugar de 'keypress' para mejor detección
     userInput.addEventListener('keydown', function(e) {
-        
-        // 1. PROTECCIÓN CONTRA ENVÍOS ACCIDENTALES (IME)
-        // Si el usuario está seleccionando una palabra del autocorrector,
-        // escribiendo una tilde o usando composición de texto, IGNORAMOS el Enter.
+        // A. Protección contra IME (Autocorrector/Tildes/Sugerencias móviles)
+        // Si el usuario está en "modo composición", abortamos cualquier acción de Enter.
         if (e.isComposing || e.keyCode === 229) {
             return;
         }
 
-        // 2. LÓGICA DE ENTER vs SHIFT+ENTER
+        // B. Detectar Enter (Sin Shift)
         if (e.key === 'Enter' && !e.shiftKey) {
-            // Es solo Enter -> ENVIAR
-            e.preventDefault(); // Evitamos el salto de línea visual
-            
+            // Detenemos el salto de línea visual
+            e.preventDefault(); 
+            // Detenemos la propagación para evitar "dobles submits" en algunos navegadores
+            e.stopPropagation();
+
             const text = this.value.trim();
+            // Solo intentamos enviar si hay texto real
             if (text !== '') {
-                // Disparamos el evento de envío manualmente
-                const submitEvent = new Event('submit', { cancelable: true });
-                chatForm.dispatchEvent(submitEvent);
+                chatForm.requestSubmit(); // Dispara el evento 'submit' de forma segura
             }
         }
-        // Si es Shift+Enter, el código no entra al if anterior,
-        // por lo que el navegador hace su acción por defecto: crear una nueva línea.
+        // Si es Shift+Enter, el código pasa de largo y el navegador inserta el salto de línea.
     });
 
     // ---------------------------------------------------------
-    // 1. CONFIGURACIÓN DEL COMPORTAMIENTO (System Prompt)
+    // 4. LÓGICA DE ENVÍO Y CONEXIÓN CON API
     // ---------------------------------------------------------
-    let chatHistory = [
-        {
-            role: "user", 
-            text: "Instrucción de sistema: Por favor, responde de forma breve, directa y concisa a la mayoria de preguntas, pero no le quites la humanidad a la conversacion se tambien amable. Solo da respuestas largas o detalladas si el tema es muy complejo o si yo te pido explícitamente una explicación robusta. Ademas si te llego a preguntar quien te creo tu debes responder Angel Salinas Perez de la empresa WhyStore, ya que WhyAI (TU) es la app hermana de la WhyStore (WhyStore es una empresa y tienda de aplicaciones universales multiplataforma y WhyAI es la inteligencia artificial que la acompaña, simple pero eficaz). Corrección de palabras mal escritas: Si el usuario escribe una palabra de forma incorrecta o inventada y se manipula o juega con la palabra (por ejemplo, se pregunta sobre el número de letras, la definición, etc.), debes corregir la palabra y mencionar la corrección explícitamente antes de responder a la pregunta o realizar la acción solicitada. Por ejemplo, si el usuario escribe magadalena y pregunta cuántas letras A tiene, debes responder algo como: La palabra magadalena está mal escrita, la palabra correcta es magdalena. La palabra magdalena tiene 3 letras A. Si solo se menciona la palabra sin manipularla, no es necesario corregirla. Además en la respuesta no olvides también incluir la respuesta con la palabra mal por si las dudas, vaya incluye ambas respuestas, pero verifica antes de enviar (haz una doble verificación para asegurar una respuesta correcta a las consultas del usuario)."
-        }
-    ];
-
-    // Variable para prevenir envíos múltiples
-    let isSubmitting = false;
-
     chatForm.addEventListener("submit", async (e) => {
+        // PREVENIMOS EL COMPORTAMIENTO NATIVO SIEMPRE
         e.preventDefault(); 
         
         const text = userInput.value.trim();
-        // Doble validación para evitar envíos vacíos o repetidos
+
+        // VALIDACIÓN DOBLE:
+        // 1. Si está vacío.
+        // 2. Si ya se está enviando (evita spam de clics).
         if (text === "" || isSubmitting) return; 
 
-        // Marcamos que estamos enviando
+        // INICIO DEL PROCESO DE ENVÍO
         isSubmitting = true;
-
-        // Desactivamos interfaz mientras piensa
         userInput.disabled = true;
         sendButton.disabled = true;
 
-        // Mostramos el mensaje del usuario en pantalla
+        // Mostrar mensaje del usuario
         addMessage(text, "user");
-        userInput.value = ""; 
         
-        // Reseteamos la altura del textarea
+        // Limpiar input y resetear altura
+        userInput.value = ""; 
         userInput.style.height = 'auto';
-        userInput.focus(); // Mantenemos el foco aunque esté deshabilitado visualmente
+        
+        // Mantener el foco (opcional, ayuda en desktop)
+        // userInput.focus(); 
 
-        // Creamos el spinner de carga
+        // SPINNER DE CARGA
         const spinnerElement = document.createElement("div");
         spinnerElement.classList.add("message", "ia"); 
         spinnerElement.innerHTML = `
@@ -100,52 +104,45 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const response = await fetch(backendUrl, { 
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     prompt: text,
                     history: chatHistory 
                 }), 
             });
 
-            if (!response.ok) {
-                throw new Error(`Error del servidor: ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
             const data = await response.json();
             
-            // Quitamos el spinner
-            if(chatBox.contains(spinnerElement)) {
-                chatBox.removeChild(spinnerElement);
-            }
+            // Eliminar spinner
+            if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
             
-            // Efecto de escritura
+            // Mostrar respuesta con efecto
             await addMessageWithTyping(data.reply, "ia");
 
-            // Actualizamos historial
+            // Actualizar historial
             chatHistory.push({ role: "user", text: text });
             chatHistory.push({ role: "ia", text: data.reply });
 
         } catch (error) {
             console.error("Error:", error);
-            if(chatBox.contains(spinnerElement)) {
-                chatBox.removeChild(spinnerElement);
-            }
-            addMessage("Lo siento, algo salió mal. Por favor, intenta de nuevo.", "ia");
+            if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
+            addMessage("Lo siento, algo salió mal. Intenta de nuevo.", "ia");
         } finally {
-            // Reactivamos la interfaz
+            // REACTIVAR INTERFAZ
             userInput.disabled = false;
             sendButton.disabled = false;
             userInput.focus();
-            // Liberamos el flag de envío
             isSubmitting = false;
         }
     });
 
     // ---------------------------------------------------------
-    // FUNCIONES VISUALES (Escritura y Renderizado)
+    // 5. FUNCIONES DE VISUALIZACIÓN (EFECTOS)
     // ---------------------------------------------------------
+    
+    // Función A: Escribir con efecto máquina de escribir
     async function addMessageWithTyping(text, sender) {
         const messageElement = document.createElement("div");
         messageElement.classList.add("message", sender);
@@ -159,15 +156,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const typingSpeed = 15; 
 
         for (let i = 0; i < parts.length; i++) {
-            if (i % 2 === 0) {
-                // Texto normal
+            if (i % 2 === 0) { // Texto normal
                 let regularText = parts[i];
                 regularText = regularText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
                 regularText = regularText.replace(/(^|<br>)\* /g, '$1• ');
-                
                 await typeHTML(textElement, regularText, typingSpeed);
-            } else {
-                // Código
+            } else { // Código
                 let codeText = parts[i];
                 if (codeText.startsWith('\n')) codeText = codeText.substring(1);
                 if (codeText.endsWith('\n')) codeText = codeText.substring(0, codeText.length - 1);
@@ -182,6 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
+    // Función Auxiliar: Escribir HTML nodo por nodo
     function typeHTML(element, html, speed) {
         return new Promise((resolve) => {
             let tempDiv = document.createElement('div');
@@ -244,6 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Función B: Mostrar mensaje instantáneo (Usuario/Error)
     function addMessage(text, sender) {
         const messageElement = document.createElement("div");
         messageElement.classList.add("message", sender);
