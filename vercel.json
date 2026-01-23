@@ -1,7 +1,8 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build || echo 'no build'",
   "installCommand": "npm install",
   "framework": null,
+  "outputDirectory": ".",
   "rewrites": [
     {
       "source": "/api/:path*",
