@@ -1,7 +1,19 @@
 {
   "name": "whyia-final",
   "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "prebuild": "node download-model.js",
+    "build": "echo 'Build completed'",
+    "postbuild": "echo 'Models ready'",
+    "dev": "node download-model.js && echo 'Dev server ready'",
+    "download-model": "node download-model.js"
+  },
   "dependencies": {
     "openai": "^4.28.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
