@@ -1,27 +1,5 @@
 {
-  "buildCommand": "npm run build || echo 'no build'",
-  "installCommand": "npm install",
-  "framework": null,
+  "buildCommand": "echo build skipped",
   "outputDirectory": ".",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/models/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        }
-      ]
-    }
-  ]
+  "framework": null
 }
