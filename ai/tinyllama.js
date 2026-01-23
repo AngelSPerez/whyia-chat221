@@ -1,4 +1,10 @@
-import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1";
+import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1";
+
+// 🔧 CONFIGURAR CDN CORRECTA
+env.allowLocalModels = false;
+env.allowRemoteModels = true;
+env.remoteURL = "https://huggingface.co/";
+env.remotePathTemplate = "{model}/resolve/{revision}/";
 
 let generator = null;
 
@@ -8,12 +14,15 @@ export async function loadLLM() {
   try {
     generator = await pipeline(
       "text-generation",
-      "Xenova/distilgpt2",
+      "Xenova/distilgpt2", // Modelo que SÍ funciona públicamente
       {
         quantized: true,
+        revision: "main",
         progress_callback: p => {
           if (p.status === 'progress') {
-            console.log(`Descargando: ${p.file} - ${Math.round(p.progress)}%`);
+            console.log(`📥 ${p.file}: ${Math.round(p.progress || 0)}%`);
+          } else if (p.status === 'done') {
+            console.log(`✅ ${p.file} completado`);
           }
         }
       }
@@ -59,7 +68,7 @@ export async function askOffline(prompt, history = []) {
     reply = aiParts[aiParts.length - 1].trim();
   }
   
-  // Limpiar respuesta (cortar en saltos de línea múltiples o "Human:")
+  // Limpiar respuesta
   reply = reply.split("\n\n")[0].split("Human:")[0].trim();
   
   return reply || "Lo siento, no pude generar una respuesta.";
