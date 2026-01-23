@@ -4,16 +4,32 @@ let generator = null;
 
 export async function loadLLM() {
   if (generator) return;
-  generator = await pipeline(
-    "text-generation",
-    "Xenova/tinyllama-1.1b-chat",
-    {
-      quantized: true,
-      progress_callback: p => {
-        console.log("Descargando modelo TinyLlama:", p);
+  
+  try {
+    generator = await pipeline(
+      "text-generation",
+      "Xenova/Phi-1_5", // Modelo alternativo más pequeño y accesible
+      {
+        quantized: true,
+        progress_callback: p => {
+          console.log("Descargando modelo:", p);
+        }
       }
-    }
-  );
+    );
+  } catch (error) {
+    console.warn("No se pudo cargar Phi-1.5, intentando con gpt2...");
+    // Fallback a GPT-2 que siempre está disponible
+    generator = await pipeline(
+      "text-generation",
+      "Xenova/gpt2",
+      {
+        quantized: true,
+        progress_callback: p => {
+          console.log("Descargando GPT-2:", p);
+        }
+      }
+    );
+  }
 }
 
 export async function askOffline(prompt, history = []) {
@@ -34,7 +50,7 @@ export async function askOffline(prompt, history = []) {
   context += `Usuario: ${prompt}\nAsistente:`;
   
   const out = await generator(context, {
-    max_new_tokens: 150, // Aumentado para respuestas más completas
+    max_new_tokens: 150,
     temperature: 0.7,
     do_sample: true,
     top_k: 50,
