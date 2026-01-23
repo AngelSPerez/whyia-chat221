@@ -8,62 +8,59 @@ export async function loadLLM() {
   try {
     generator = await pipeline(
       "text-generation",
-      "Xenova/Phi-1_5", // Modelo alternativo más pequeño y accesible
+      "Xenova/distilgpt2",
       {
         quantized: true,
         progress_callback: p => {
-          console.log("Descargando modelo:", p);
+          if (p.status === 'progress') {
+            console.log(`Descargando: ${p.file} - ${Math.round(p.progress)}%`);
+          }
         }
       }
     );
+    console.log("✅ Modelo cargado correctamente");
   } catch (error) {
-    console.warn("No se pudo cargar Phi-1.5, intentando con gpt2...");
-    // Fallback a GPT-2 que siempre está disponible
-    generator = await pipeline(
-      "text-generation",
-      "Xenova/gpt2",
-      {
-        quantized: true,
-        progress_callback: p => {
-          console.log("Descargando GPT-2:", p);
-        }
-      }
-    );
+    console.error("❌ Error cargando modelo:", error);
+    throw error;
   }
 }
 
 export async function askOffline(prompt, history = []) {
   await loadLLM();
   
-  // Construir contexto con historial (últimos 3 mensajes para no saturar)
-  let context = "";
-  const recentHistory = history.slice(-6); // Últimos 3 intercambios (user + ia)
+  // Construir contexto conversacional
+  let context = "The following is a conversation with an AI assistant.\n\n";
+  const recentHistory = history.slice(-4);
   
   for (const msg of recentHistory) {
     if (msg.role === "user") {
-      context += `Usuario: ${msg.text}\n`;
+      context += `Human: ${msg.text}\n`;
     } else if (msg.role === "ia") {
-      context += `Asistente: ${msg.text}\n`;
+      context += `AI: ${msg.text}\n`;
     }
   }
   
-  context += `Usuario: ${prompt}\nAsistente:`;
+  context += `Human: ${prompt}\nAI:`;
   
   const out = await generator(context, {
-    max_new_tokens: 150,
-    temperature: 0.7,
+    max_new_tokens: 120,
+    temperature: 0.8,
     do_sample: true,
     top_k: 50,
-    top_p: 0.9
+    top_p: 0.95,
+    repetition_penalty: 1.2
   });
   
-  // Extraer solo la respuesta del asistente
   let reply = out[0].generated_text;
   
-  // Limpiar la respuesta (quitar el contexto que devuelve)
-  if (reply.includes("Asistente:")) {
-    reply = reply.split("Asistente:").pop().trim();
+  // Extraer solo la última respuesta del AI
+  if (reply.includes("AI:")) {
+    const aiParts = reply.split("AI:");
+    reply = aiParts[aiParts.length - 1].trim();
   }
   
-  return reply;
+  // Limpiar respuesta (cortar en saltos de línea múltiples o "Human:")
+  reply = reply.split("\n\n")[0].split("Human:")[0].trim();
+  
+  return reply || "Lo siento, no pude generar una respuesta.";
 }
