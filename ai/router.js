@@ -1,13 +1,13 @@
-import { askOffline } from "./tinyllama.js";
+import { askOffline } from "./tinyllama.js"; // O el nombre que uses
 
 export async function askAI(prompt, history = []) {
-  // 🟢 NETWORK FIRST → Intentar Groq (backend) primero
+  // 🟢 NETWORK FIRST → Intentar backend primero
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, history }),
-      signal: AbortSignal.timeout(10000) // Timeout de 10 segundos
+      signal: AbortSignal.timeout(10000)
     });
     
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -16,8 +16,7 @@ export async function askAI(prompt, history = []) {
     return data.reply;
     
   } catch (error) {
-    // 🔴 FALLBACK → Si falla el backend, usar TinyLlama local
-    console.warn("Backend falló, usando modo offline:", error.message);
+    console.warn("⚠️ Backend no disponible, usando modo offline:", error.message);
     return await askOffline(prompt, history);
   }
 }
