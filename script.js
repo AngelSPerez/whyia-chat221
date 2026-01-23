@@ -271,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     showOfflineToast();
                 }
 
-                const reply = await askAI(messageText);
+                const reply = await askAI(messageText, chatHistory);
                 
                 if (chatBox.contains(spinnerElement)) {
                     chatBox.removeChild(spinnerElement);
