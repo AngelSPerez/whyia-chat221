@@ -12,7 +12,7 @@ export async function loadLLM() {
   try {
     generator = await pipeline(
       "text-generation",
-      "Xenova/distilgpt2", // ✅ ESTE MODELO SÍ FUNCIONA
+      "onnx-community/Qwen2.5-0.5B-Instruct", // ✅ ESTE MODELO SÍ FUNCIONA
       {
         quantized: true,
         progress_callback: p => {
