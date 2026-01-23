@@ -1,10 +1,8 @@
 import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1";
 
-// 🔧 CONFIGURAR CDN CORRECTA
+// Configurar para descargar desde HuggingFace
 env.allowLocalModels = false;
 env.allowRemoteModels = true;
-env.remoteURL = "https://huggingface.co/";
-env.remotePathTemplate = "{model}/resolve/{revision}/";
 
 let generator = null;
 
@@ -14,20 +12,21 @@ export async function loadLLM() {
   try {
     generator = await pipeline(
       "text-generation",
-      "Xenova/distilgpt2", // Modelo que SÍ funciona públicamente
+      "Xenova/distilgpt2", // ✅ ESTE MODELO SÍ FUNCIONA
       {
         quantized: true,
-        revision: "main",
         progress_callback: p => {
           if (p.status === 'progress') {
-            console.log(`📥 ${p.file}: ${Math.round(p.progress || 0)}%`);
+            console.log(`📥 Descargando ${p.file}: ${Math.round(p.progress || 0)}%`);
           } else if (p.status === 'done') {
-            console.log(`✅ ${p.file} completado`);
+            console.log(`✅ ${p.file} listo`);
+          } else {
+            console.log("📦 Iniciando descarga:", p.file);
           }
         }
       }
     );
-    console.log("✅ Modelo cargado correctamente");
+    console.log("🎉 Modelo DistilGPT-2 cargado correctamente");
   } catch (error) {
     console.error("❌ Error cargando modelo:", error);
     throw error;
@@ -37,39 +36,44 @@ export async function loadLLM() {
 export async function askOffline(prompt, history = []) {
   await loadLLM();
   
-  // Construir contexto conversacional
-  let context = "The following is a conversation with an AI assistant.\n\n";
-  const recentHistory = history.slice(-4);
+  // Construir contexto
+  let context = "";
+  const recentHistory = history.slice(-4); // Últimos 2 intercambios
   
   for (const msg of recentHistory) {
     if (msg.role === "user") {
-      context += `Human: ${msg.text}\n`;
+      context += `Q: ${msg.text}\n`;
     } else if (msg.role === "ia") {
-      context += `AI: ${msg.text}\n`;
+      context += `A: ${msg.text}\n`;
     }
   }
   
-  context += `Human: ${prompt}\nAI:`;
+  context += `Q: ${prompt}\nA:`;
   
-  const out = await generator(context, {
-    max_new_tokens: 120,
-    temperature: 0.8,
-    do_sample: true,
-    top_k: 50,
-    top_p: 0.95,
-    repetition_penalty: 1.2
-  });
-  
-  let reply = out[0].generated_text;
-  
-  // Extraer solo la última respuesta del AI
-  if (reply.includes("AI:")) {
-    const aiParts = reply.split("AI:");
-    reply = aiParts[aiParts.length - 1].trim();
+  try {
+    const out = await generator(context, {
+      max_new_tokens: 100,
+      temperature: 0.7,
+      do_sample: true,
+      top_k: 50,
+      top_p: 0.9,
+      repetition_penalty: 1.1
+    });
+    
+    let reply = out[0].generated_text;
+    
+    // Extraer solo la respuesta
+    if (reply.includes("A:")) {
+      const parts = reply.split("A:");
+      reply = parts[parts.length - 1].trim();
+    }
+    
+    // Limpiar
+    reply = reply.split("\n")[0].split("Q:")[0].trim();
+    
+    return reply || "No pude generar una respuesta.";
+  } catch (error) {
+    console.error("Error generando respuesta:", error);
+    return "Error en modo offline.";
   }
-  
-  // Limpiar respuesta
-  reply = reply.split("\n\n")[0].split("Human:")[0].trim();
-  
-  return reply || "Lo siento, no pude generar una respuesta.";
 }
