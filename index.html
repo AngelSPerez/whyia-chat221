@@ -29,7 +29,6 @@
             <div class="disclaimer" id="disclaimer">WhyAI puede cometer errores. Comprueba la información importante.</div>
         </form>
     </div>
-
     <script>
         // Textos en diferentes idiomas
         const translations = {
@@ -46,13 +45,11 @@
                 disclaimer: "WhyAI can make mistakes. Check important information."
             }
         };
-
         // Países de habla hispana (códigos ISO)
         const spanishSpeakingCountries = [
             'ES', 'MX', 'AR', 'CO', 'VE', 'PE', 'CL', 'EC', 'GT', 'CU',
             'BO', 'DO', 'HN', 'PY', 'SV', 'NI', 'CR', 'PA', 'UY', 'GQ'
         ];
-
         // Función para detectar el idioma basado en la región
         async function detectLanguage() {
             try {
@@ -66,13 +63,14 @@
                 
                 return language;
             } catch (error) {
-                console.log('Error detecting location, using browser language');
+                console.log('No se pudo detectar el idioma por IP, intentando con idioma del navegador');
                 // Fallback: usar el idioma del navegador
                 const browserLang = navigator.language || navigator.userLanguage;
-                return browserLang.startsWith('es') ? 'es' : 'en';
+                const language = browserLang.toLowerCase().startsWith('es') ? 'es' : 'en';
+                console.log('Idioma detectado del navegador:', browserLang, '-> usando:', language);
+                return language;
             }
         }
-
         // Función para aplicar las traducciones
         function applyTranslations(lang) {
             const texts = translations[lang];
@@ -83,7 +81,6 @@
             document.getElementById('disclaimer').textContent = texts.disclaimer;
             document.documentElement.lang = lang;
         }
-
         // Detectar y aplicar el idioma al cargar la página
         detectLanguage().then(lang => {
             applyTranslations(lang);
