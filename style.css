@@ -271,19 +271,19 @@ h1 {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(90deg, #4ade80, #22c55e);
+    background: #444;         /* Gris en lugar de verde */
     border-radius: 8px;
     border: 2px solid #1a1a1a;
     transition: background 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(90deg, #5ae890, #16a34a);
+    background: #555;         /* Gris más claro al hover */
     cursor: pointer;
 }
 
 ::-webkit-scrollbar-thumb:active {
-    background: #4ade80;
+    background: #666;         /* Gris aún más claro al click */
 }
 
 /* Scrollbar horizontal específico para bloques de código */
@@ -305,13 +305,13 @@ h1 {
 }
 
 .message.ia pre::-webkit-scrollbar-thumb:hover {
-    background: #4ade80;      /* Verde al hover */
+    background: #555;         /* Gris al hover */
 }
 
 /* Soporte Firefox para scrollbar horizontal */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #4ade80 #1a1a1a;
+    scrollbar-color: #444 #1a1a1a;  /* Gris en lugar de verde */
 }
 
 .message.ia pre {
