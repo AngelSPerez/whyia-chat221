@@ -21,16 +21,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const DEBOUNCE_TIME = 500;
 
     // ---------------------------------------------------------
+    // 1.5. FUNCIÓN PARA LIMITAR EL HISTORIAL
+    // ---------------------------------------------------------
+    function limitChatHistory() {
+        // Solo actuar si hay 15 o más mensajes
+        if (chatHistory.length >= 15) {
+            // Guardar el primer mensaje (system prompt)
+            const systemMessage = chatHistory[0];
+            
+            // Eliminar los 8 mensajes más antiguos (después del system)
+            // Esto elimina desde índice 1 hasta índice 8 (8 mensajes)
+            chatHistory.splice(1, 8);
+            
+            console.log(`Historial limitado: ${chatHistory.length} mensajes restantes`);
+        }
+    }
+
+    // ---------------------------------------------------------
     // 2. AUTO-EXPANSIÓN DEL TEXTAREA
     // ---------------------------------------------------------
     userInput.addEventListener('input', function(e) {
         if (isSubmitting) {
             return;
         }
-        
+
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
-        
+
         if (this.scrollHeight > 200) {
             this.style.overflowY = 'auto';
         } else {
@@ -80,12 +97,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!enterPressed) {
                 enterPressed = true;
                 console.log('Enter presionado');
-                
+
                 const text = this.value.trim();
                 if (text !== '') {
                     handleSendMessage(text);
                 }
-                
+
                 setTimeout(() => {
                     enterPressed = false;
                 }, DEBOUNCE_TIME);
@@ -129,7 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        
+
         console.log('Botón clickeado');
         const text = userInput.value.trim();
         if (text !== '') {
@@ -142,16 +159,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
     function handleSendMessage(text) {
         const currentTime = Date.now();
-        
+
         console.log('handleSendMessage llamado con:', text);
         console.log('isSubmitting:', isSubmitting);
         console.log('Tiempo desde último envío:', currentTime - lastSubmitTime, 'ms');
-        
+
         if (currentTime - lastSubmitTime < DEBOUNCE_TIME) {
             console.log('❌ BLOQUEADO: Debounce de tiempo');
             return;
         }
-        
+
         if (isSubmitting) {
             console.log('❌ BLOQUEADO: Envío en proceso');
             return;
@@ -166,9 +183,9 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log('❌ BLOQUEADO: Composición activa');
             return;
         }
-        
+
         console.log('✅ ENVIANDO MENSAJE');
-        
+
         lastSubmitTime = currentTime;
         isSubmitting = true;
         userInput.disabled = true;
@@ -201,7 +218,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function sendToAPI(text, spinnerElement) {
         try {
             const backendUrl = '/api/chat'; 
-            
+
             const response = await fetch(backendUrl, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -214,13 +231,16 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
             const data = await response.json();
-            
+
             if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
-            
+
             await addMessageWithTyping(data.reply, "ia");
 
             chatHistory.push({ role: "user", text: text });
             chatHistory.push({ role: "ia", text: data.reply });
+
+            // ✅ Aplicar la regla de limitación del historial
+            limitChatHistory();
 
         } catch (error) {
             console.error("Error:", error);
@@ -240,12 +260,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
     // 8. FUNCIONES DE VISUALIZACIÓN (EFECTOS) - ✅ CORREGIDO
     // ---------------------------------------------------------
-    
+
     // Función A: Escribir con efecto máquina de escribir
     async function addMessageWithTyping(text, sender) {
         const messageElement = document.createElement("div");
         messageElement.classList.add("message", sender);
-        
+
         const textElement = document.createElement("p");
         messageElement.appendChild(textElement);
         chatBox.appendChild(messageElement);
@@ -260,7 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 let regularText = parts[i]
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;');
-                
+
                 regularText = regularText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
                 regularText = regularText.replace(/(^|<br>)\* /g, '$1• ');
                 await typeHTML(textElement, regularText, typingSpeed);
@@ -269,7 +289,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 let codeText = parts[i];
                 if (codeText.startsWith('\n')) codeText = codeText.substring(1);
                 if (codeText.endsWith('\n')) codeText = codeText.substring(0, codeText.length - 1);
-                
+
                 const codeBlock = document.createElement('pre');
                 const codeElement = document.createElement('code');
                 codeElement.textContent = codeText; // ← Escapa automáticamente
@@ -287,19 +307,19 @@ document.addEventListener("DOMContentLoaded", () => {
             tempDiv.innerHTML = html;
             let nodes = Array.from(tempDiv.childNodes);
             let currentIndex = 0;
-            
+
             function typeNextNode() {
                 if (currentIndex >= nodes.length) {
                     resolve();
                     return;
                 }
-                
+
                 let node = nodes[currentIndex];
-                
+
                 if (node.nodeType === Node.TEXT_NODE) {
                     let text = node.textContent;
                     let charIndex = 0;
-                    
+
                     function typeNextChar() {
                         if (charIndex < text.length) {
                             let char = text[charIndex];
@@ -317,7 +337,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     }
                     typeNextChar();
-                    
+
                 } else if (node.nodeType === Node.ELEMENT_NODE) {
                     if (node.tagName === 'BR') {
                         element.appendChild(document.createElement('br'));
@@ -368,7 +388,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 let codeText = part;
                 if (codeText.startsWith('\n')) codeText = codeText.substring(1);
                 if (codeText.endsWith('\n')) codeText = codeText.substring(0, codeText.length - 1);
-                
+
                 const tempCode = document.createElement('code');
                 tempCode.textContent = codeText; // ← Escapa automáticamente
                 processedText += `<pre>${tempCode.outerHTML}</pre>`;
