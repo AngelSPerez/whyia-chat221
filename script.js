@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ✅ Detectar scroll manual del usuario
     chatBox.addEventListener('scroll', () => {
-        const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop <= chatBox.clientHeight + 50;
+        const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop <= chatBox.clientHeight + 100;
         userScrolled = !isAtBottom;
     });
 
@@ -77,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
-    // 3. CONTROL DE TECLADO (ULTRA PROTEGIDO) - ✅ MODIFICADO PARA MÓVIL
+    // 3. CONTROL DE TECLADO (ULTRA PROTEGIDO) - ✅ CORREGIDO
     // ---------------------------------------------------------
     let enterPressed = false;
 
@@ -87,16 +87,17 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        if (isSubmitting) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            console.log('Bloqueado: envío en proceso');
-            return;
-        }
-
-        // ✅ MODIFICADO: En móvil, Enter siempre da salto de línea
+        // ✅ CORREGIDO: Solo bloquear Enter para envío, NO otras teclas
         if (e.key === 'Enter' && !e.shiftKey) {
+            // ✅ Bloquear envío solo si está generando
+            if (isSubmitting) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('Bloqueado: envío en proceso');
+                return;
+            }
+
             if (isMobile) {
                 // En móvil: permitir salto de línea normal
                 return;
@@ -123,6 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.log('Enter bloqueado: ya fue presionado');
             }
         }
+        // ✅ TODAS las demás teclas funcionan normalmente (Backspace, Delete, flechas, etc.)
     });
 
     userInput.addEventListener('keyup', function(e) {
@@ -153,7 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, true);
 
     // ---------------------------------------------------------
-    // 5. EVENTO DEL BOTÓN DE ENVÍO - ✅ MODIFICADO
+    // 5. EVENTO DEL BOTÓN DE ENVÍO - ✅ MODIFICADO CON NUEVOS ICONOS
     // ---------------------------------------------------------
     sendButton.addEventListener('click', (e) => {
         e.preventDefault();
@@ -176,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ✅ Función para detener la generación
     function stopGeneration() {
         isGenerating = false;
-        sendButton.textContent = '⛰︎';
+        sendButton.textContent = '⛰︎'; // ✅ NUEVO ICONO
         sendButton.disabled = false;
         userInput.focus();
         console.log('Generación detenida por el usuario');
@@ -219,8 +221,8 @@ document.addEventListener("DOMContentLoaded", () => {
         isGenerating = true;
         userScrolled = false; // ✅ Resetear scroll automático
         
-        // ✅ MODIFICADO: Cambiar botón a stop pero mantener textarea habilitado
-        sendButton.textContent = '◼︎';
+        // ✅ MODIFICADO: Cambiar botón a stop con nuevo icono
+        sendButton.textContent = '◼︎'; // ✅ NUEVO ICONO
         sendButton.disabled = false; // Mantenerlo habilitado para poder detener
 
         const messageText = text;
@@ -287,7 +289,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } finally {
             setTimeout(() => {
                 sendButton.disabled = false;
-                sendButton.textContent = '➤'; // ✅ Restaurar icono
+                sendButton.textContent = '⛰︎'; // ✅ NUEVO ICONO
                 isGenerating = false;
                 userInput.focus();
                 isSubmitting = false;
@@ -437,27 +439,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
         parts.forEach((part, index) => {
             if (index % 2 === 0) {
-                let regularText = part
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/\n/g, '<br>')
-                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-                    .replace(/(^|<br>)\* /g, '$1• ');
-                processedText += regularText;
-            } else {
-                let codeText = part;
-                if (codeText.startsWith('\n')) codeText = codeText.substring(1);
-                if (codeText.endsWith('\n')) codeText = codeText.substring(0, codeText.length - 1);
-
-                const tempCode = document.createElement('code');
-                tempCode.textContent = codeText;
-                processedText += `<pre>${tempCode.outerHTML}</pre>`;
-            }
-        });
-
-        textElement.innerHTML = processedText;
-        messageElement.appendChild(textElement);
-        chatBox.appendChild(messageElement);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-});
+         
