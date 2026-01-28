@@ -15,9 +15,20 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
 
     let isSubmitting = false;
+    let isGenerating = false; // ✅ Controlar si la IA está generando
     let isComposing = false;
     let lastSubmitTime = 0;
     const DEBOUNCE_TIME = 500;
+    let userScrolled = false; // ✅ Detectar si el usuario hizo scroll
+
+    // ✅ Detectar si es dispositivo móvil
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    // ✅ Detectar scroll manual del usuario
+    chatBox.addEventListener('scroll', () => {
+        const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop <= chatBox.clientHeight + 50;
+        userScrolled = !isAtBottom;
+    });
 
     // ---------------------------------------------------------
     // 1.5. FUNCIÓN PARA LIMITAR EL HISTORIAL
@@ -40,10 +51,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. AUTO-EXPANSIÓN DEL TEXTAREA
     // ---------------------------------------------------------
     userInput.addEventListener('input', function(e) {
-        if (isSubmitting) {
-            return;
-        }
-
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
 
@@ -70,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
-    // 3. CONTROL DE TECLADO (ULTRA PROTEGIDO)
+    // 3. CONTROL DE TECLADO (ULTRA PROTEGIDO) - ✅ MODIFICADO PARA MÓVIL
     // ---------------------------------------------------------
     let enterPressed = false;
 
@@ -88,7 +95,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        // ✅ MODIFICADO: En móvil, Enter siempre da salto de línea
         if (e.key === 'Enter' && !e.shiftKey) {
+            if (isMobile) {
+                // En móvil: permitir salto de línea normal
+                return;
+            }
+            
+            // En escritorio: enviar mensaje
             e.preventDefault(); 
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -112,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     userInput.addEventListener('keyup', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -139,12 +153,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }, true);
 
     // ---------------------------------------------------------
-    // 5. EVENTO DEL BOTÓN DE ENVÍO
+    // 5. EVENTO DEL BOTÓN DE ENVÍO - ✅ MODIFICADO
     // ---------------------------------------------------------
     sendButton.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
+
+        // ✅ Si está generando, detener la generación
+        if (isGenerating) {
+            stopGeneration();
+            return;
+        }
 
         console.log('Botón clickeado');
         const text = userInput.value.trim();
@@ -152,6 +172,15 @@ document.addEventListener("DOMContentLoaded", () => {
             handleSendMessage(text);
         }
     });
+
+    // ✅ Función para detener la generación
+    function stopGeneration() {
+        isGenerating = false;
+        sendButton.textContent = '➤';
+        sendButton.disabled = false;
+        userInput.focus();
+        console.log('Generación detenida por el usuario');
+    }
 
     // ---------------------------------------------------------
     // 6. LÓGICA DE ENVÍO UNIFICADA CON MÚLTIPLES PROTECCIONES
@@ -187,8 +216,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         lastSubmitTime = currentTime;
         isSubmitting = true;
-        userInput.disabled = true;
-        sendButton.disabled = true;
+        isGenerating = true;
+        userScrolled = false; // ✅ Resetear scroll automático
+        
+        // ✅ MODIFICADO: Cambiar botón a stop pero mantener textarea habilitado
+        sendButton.textContent = '⏹';
+        sendButton.disabled = false; // Mantenerlo habilitado para poder detener
 
         const messageText = text;
         userInput.value = ""; 
@@ -212,7 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ---------------------------------------------------------
-    // 7. CONEXIÓN CON API
+    // 7. CONEXIÓN CON API - ✅ MODIFICADO
     // ---------------------------------------------------------
     async function sendToAPI(text, spinnerElement) {
         try {
@@ -223,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     prompt: text,
-                    history: chatHistory 
+                    history: chatHistory
                 }), 
             });
 
@@ -232,6 +265,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
 
             if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
+
+            // ✅ Verificar si la generación fue detenida
+            if (!isGenerating) {
+                console.log('Generación cancelada, no se muestra respuesta');
+                return;
+            }
 
             await addMessageWithTyping(data.reply, "ia");
 
@@ -247,8 +286,9 @@ document.addEventListener("DOMContentLoaded", () => {
             addMessage("Lo siento, algo salió mal. Intenta de nuevo.", "ia");
         } finally {
             setTimeout(() => {
-                userInput.disabled = false;
                 sendButton.disabled = false;
+                sendButton.textContent = '➤'; // ✅ Restaurar icono
+                isGenerating = false;
                 userInput.focus();
                 isSubmitting = false;
                 console.log('Interfaz reactivada');
@@ -257,7 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ---------------------------------------------------------
-    // 8. FUNCIONES DE VISUALIZACIÓN (EFECTOS) - ✅ CORREGIDO
+    // 8. FUNCIONES DE VISUALIZACIÓN (EFECTOS) - ✅ MODIFICADO
     // ---------------------------------------------------------
 
     // Función A: Escribir con efecto máquina de escribir
@@ -269,13 +309,17 @@ document.addEventListener("DOMContentLoaded", () => {
         messageElement.appendChild(textElement);
         chatBox.appendChild(messageElement);
 
-        // ✅ NO escapar todo el texto primero
         const parts = text.split('```');
         const typingSpeed = 15; 
 
         for (let i = 0; i < parts.length; i++) {
+            // ✅ Verificar si se detuvo la generación
+            if (!isGenerating) {
+                console.log('Generación detenida durante el tipeo');
+                break;
+            }
+
             if (i % 2 === 0) { 
-                // ✅ TEXTO NORMAL: sí escapar HTML
                 let regularText = parts[i]
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;');
@@ -284,22 +328,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 regularText = regularText.replace(/(^|<br>)\* /g, '$1• ');
                 await typeHTML(textElement, regularText, typingSpeed);
             } else { 
-                // ✅ CÓDIGO: NO escapar, textContent lo hace automáticamente
                 let codeText = parts[i];
                 if (codeText.startsWith('\n')) codeText = codeText.substring(1);
                 if (codeText.endsWith('\n')) codeText = codeText.substring(0, codeText.length - 1);
 
                 const codeBlock = document.createElement('pre');
                 const codeElement = document.createElement('code');
-                codeElement.textContent = codeText; // ← Escapa automáticamente
+                codeElement.textContent = codeText;
                 codeBlock.appendChild(codeElement);
                 textElement.appendChild(codeBlock);
             }
         }
-        chatBox.scrollTop = chatBox.scrollHeight;
+        
+        // ✅ Scroll final solo si el usuario no hizo scroll manual
+        if (!userScrolled) {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
     }
 
-    // Función Auxiliar: Escribir HTML nodo por nodo
+    // Función Auxiliar: Escribir HTML nodo por nodo - ✅ MODIFICADO
     function typeHTML(element, html, speed) {
         return new Promise((resolve) => {
             let tempDiv = document.createElement('div');
@@ -308,6 +355,12 @@ document.addEventListener("DOMContentLoaded", () => {
             let currentIndex = 0;
 
             function typeNextNode() {
+                // ✅ Verificar si se detuvo la generación
+                if (!isGenerating) {
+                    resolve();
+                    return;
+                }
+
                 if (currentIndex >= nodes.length) {
                     resolve();
                     return;
@@ -320,6 +373,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     let charIndex = 0;
 
                     function typeNextChar() {
+                        // ✅ Verificar si se detuvo la generación
+                        if (!isGenerating) {
+                            resolve();
+                            return;
+                        }
+
                         if (charIndex < text.length) {
                             let char = text[charIndex];
                             if (char === '\n') {
@@ -328,7 +387,12 @@ document.addEventListener("DOMContentLoaded", () => {
                                 element.appendChild(document.createTextNode(char));
                             }
                             charIndex++;
-                            chatBox.scrollTop = chatBox.scrollHeight;
+                            
+                            // ✅ Solo hacer scroll si el usuario no scrolleó manualmente
+                            if (!userScrolled) {
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                            }
+                            
                             setTimeout(typeNextChar, speed);
                         } else {
                             currentIndex++;
@@ -362,19 +426,17 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Función B: Mostrar mensaje instantáneo (Usuario/Error) - ✅ CORREGIDO
+    // Función B: Mostrar mensaje instantáneo (Usuario/Error)
     function addMessage(text, sender) {
         const messageElement = document.createElement("div");
         messageElement.classList.add("message", sender);
         const textElement = document.createElement("p");
 
-        // ✅ NO escapar todo primero
         const parts = text.split('```');
         let processedText = '';
 
         parts.forEach((part, index) => {
             if (index % 2 === 0) {
-                // ✅ Texto normal: escapar HTML
                 let regularText = part
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
@@ -383,13 +445,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     .replace(/(^|<br>)\* /g, '$1• ');
                 processedText += regularText;
             } else {
-                // ✅ Código: usar textContent para escapar automáticamente
                 let codeText = part;
                 if (codeText.startsWith('\n')) codeText = codeText.substring(1);
                 if (codeText.endsWith('\n')) codeText = codeText.substring(0, codeText.length - 1);
 
                 const tempCode = document.createElement('code');
-                tempCode.textContent = codeText; // ← Escapa automáticamente
+                tempCode.textContent = codeText;
                 processedText += `<pre>${tempCode.outerHTML}</pre>`;
             }
         });
