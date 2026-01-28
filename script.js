@@ -439,4 +439,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
         parts.forEach((part, index) => {
             if (index % 2 === 0) {
-         
+                let regularText = part
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                    .replace(/(^|<br>)\* /g, '$1• ');
+                processedText += regularText;
+            } else {
+                let codeText = part;
+                if (codeText.startsWith('\n')) codeText = codeText.substring(1);
+                if (codeText.endsWith('\n')) codeText = codeText.substring(0, codeText.length - 1);
+
+                const tempCode = document.createElement('code');
+                tempCode.textContent = codeText;
+                processedText += `<pre>${tempCode.outerHTML}</pre>`;
+            }
+        });
+
+        textElement.innerHTML = processedText;
+        messageElement.appendChild(textElement);
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+});
