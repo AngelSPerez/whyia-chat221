@@ -176,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ✅ Función para detener la generación
     function stopGeneration() {
         isGenerating = false;
-        sendButton.textContent = '➤';
+        sendButton.textContent = '⛰︎';
         sendButton.disabled = false;
         userInput.focus();
         console.log('Generación detenida por el usuario');
@@ -220,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
         userScrolled = false; // ✅ Resetear scroll automático
         
         // ✅ MODIFICADO: Cambiar botón a stop pero mantener textarea habilitado
-        sendButton.textContent = '⏹';
+        sendButton.textContent = '◼︎';
         sendButton.disabled = false; // Mantenerlo habilitado para poder detener
 
         const messageText = text;
