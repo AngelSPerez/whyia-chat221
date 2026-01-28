@@ -15,45 +15,42 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
 
     let isSubmitting = false;
-    let isGenerating = false; // ✅ Controlar si la IA está generando
+    let isGenerating = false;
     let isComposing = false;
     let lastSubmitTime = 0;
     const DEBOUNCE_TIME = 500;
-    let userScrolled = false; // ✅ Detectar si el usuario hizo scroll
-    let autoScrollEnabled = true; // ✅ NUEVO: Control explícito de auto-scroll
+    let userScrolled = false;
+    let autoScrollEnabled = true;
+
+    // 🆕 Control de tokens y cooldown
+    let tokenUsageLog = [];
+    let isInCooldown = false;
+    const TOKEN_LIMIT_PER_MINUTE = 10000; // Límite conservador
+    const COOLDOWN_TIME = 120000; // 2 minutos de espera si excede
 
     // ✅ Detectar si es dispositivo móvil
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-    // ✅ MEJORADO: Detectar scroll manual del usuario de forma más precisa
     let lastScrollTop = 0;
     let scrollTimeout;
 
     chatBox.addEventListener('scroll', () => {
-        // Detectar dirección del scroll
         const currentScrollTop = chatBox.scrollTop;
         const scrollingUp = currentScrollTop < lastScrollTop;
         lastScrollTop = currentScrollTop;
 
-        // Si el usuario scrollea hacia arriba, desactivar auto-scroll
         if (scrollingUp) {
             userScrolled = true;
             autoScrollEnabled = false;
-            console.log('Usuario scrolleó hacia arriba - auto-scroll desactivado');
         } else {
-            // Si scrollea hacia abajo, verificar si llegó al final
             const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop <= chatBox.clientHeight + 5;
             if (isAtBottom) {
                 userScrolled = false;
                 autoScrollEnabled = true;
-                console.log('Usuario en el fondo - auto-scroll activado');
             }
         }
 
-        // Limpiar timeout anterior
         clearTimeout(scrollTimeout);
-        
-        // Después de 100ms sin scroll, verificar posición final
         scrollTimeout = setTimeout(() => {
             const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop <= chatBox.clientHeight + 5;
             if (isAtBottom) {
@@ -64,18 +61,81 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
+    // 🆕 FUNCIONES PARA CONTROL DE TOKENS
+    // ---------------------------------------------------------
+    
+    // Estimar tokens (1 token ≈ 4 caracteres en español/inglés)
+    function estimateTokens(text) {
+        return Math.ceil(text.length / 4);
+    }
+
+    // Calcular tokens usados en el último minuto
+    function getTokensUsedLastMinute() {
+        const now = Date.now();
+        const oneMinuteAgo = now - 60000;
+        
+        // Limpiar registros antiguos
+        tokenUsageLog = tokenUsageLog.filter(record => record.timestamp > oneMinuteAgo);
+        
+        // Sumar tokens del último minuto
+        return tokenUsageLog.reduce((sum, record) => sum + record.tokens, 0);
+    }
+
+    // Registrar uso de tokens
+    function recordTokenUsage(tokens) {
+        tokenUsageLog.push({
+            timestamp: Date.now(),
+            tokens: tokens
+        });
+    }
+
+    // Verificar si puede enviar mensaje sin exceder límite
+    function canSendMessage(estimatedTokens) {
+        if (isInCooldown) {
+            return {
+                allowed: false,
+                reason: 'cooldown',
+                message: '⏳ Por favor espera un momento. Has generado muchos mensajes largos recientemente.'
+            };
+        }
+
+        const tokensUsed = getTokensUsedLastMinute();
+        const wouldExceed = (tokensUsed + estimatedTokens) > TOKEN_LIMIT_PER_MINUTE;
+
+        if (wouldExceed) {
+            return {
+                allowed: false,
+                reason: 'token_limit',
+                message: '⚠️ Tu mensaje es muy largo o has generado muchos mensajes. Espera unos minutos antes de continuar.'
+            };
+        }
+
+        return { allowed: true };
+    }
+
+    // Activar período de enfriamiento
+    function activateCooldown() {
+        isInCooldown = true;
+        console.log('Cooldown activado por 2 minutos');
+        
+        // Mostrar mensaje visual
+        addMessage('⏳ Has alcanzado el límite de uso intensivo. Por favor espera 2 minutos antes de continuar. Esto ayuda a mantener el servicio estable para todos.', 'ia');
+        
+        setTimeout(() => {
+            isInCooldown = false;
+            tokenUsageLog = []; // Limpiar historial
+            console.log('Cooldown finalizado');
+            addMessage('✅ Ya puedes continuar usando WhyAI normalmente.', 'ia');
+        }, COOLDOWN_TIME);
+    }
+
+    // ---------------------------------------------------------
     // 1.5. FUNCIÓN PARA LIMITAR EL HISTORIAL
     // ---------------------------------------------------------
     function limitChatHistory() {
-        // Solo actuar si hay 15 o más mensajes
         if (chatHistory.length >= 15) {
-            // Guardar el primer mensaje (system prompt)
             const systemMessage = chatHistory[0];
-            
-            // Eliminar los 8 mensajes más antiguos (después del system)
-            // Esto elimina desde índice 1 hasta índice 8 (8 mensajes)
             chatHistory.splice(1, 8);
-            
             console.log(`Historial limitado: ${chatHistory.length} mensajes restantes`);
         }
     }
@@ -95,50 +155,42 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
-    // 2.5. CONTROL DE COMPOSICIÓN (IME) - MEJORADO
+    // 2.5. CONTROL DE COMPOSICIÓN (IME)
     // ---------------------------------------------------------
     userInput.addEventListener('compositionstart', (e) => {
         isComposing = true;
-        console.log('Composición iniciada');
     });
 
     userInput.addEventListener('compositionend', (e) => {
         setTimeout(() => {
             isComposing = false;
-            console.log('Composición finalizada');
         }, 50);
     });
 
     // ---------------------------------------------------------
-    // 3. CONTROL DE TECLADO - ✅ TOTALMENTE CORREGIDO
+    // 3. CONTROL DE TECLADO
     // ---------------------------------------------------------
     let enterPressed = false;
 
     userInput.addEventListener('keydown', function(e) {
         if (isComposing || e.isComposing || e.keyCode === 229) {
-            console.log('Bloqueado: composición activa');
             return;
         }
 
-        // ✅ CORREGIDO: Solo controlar Enter en ESCRITORIO
         if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
-            // Solo en escritorio: enviar mensaje o bloquear si está generando
             if (isSubmitting) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-                console.log('Bloqueado: envío en proceso');
                 return;
             }
             
-            // En escritorio: enviar mensaje
             e.preventDefault(); 
             e.stopPropagation();
             e.stopImmediatePropagation();
 
             if (!enterPressed) {
                 enterPressed = true;
-                console.log('Enter presionado');
 
                 const text = this.value.trim();
                 if (text !== '') {
@@ -148,16 +200,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 setTimeout(() => {
                     enterPressed = false;
                 }, DEBOUNCE_TIME);
-            } else {
-                console.log('Enter bloqueado: ya fue presionado');
             }
         }
-        // ✅ En móvil: Enter funciona COMPLETAMENTE NORMAL (salto de línea)
-        // ✅ Todas las demás teclas funcionan normalmente (Backspace, Delete, flechas, etc.)
     });
 
     userInput.addEventListener('keyup', function(e) {
-        // Solo prevenir en escritorio
         if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
             e.preventDefault();
             e.stopPropagation();
@@ -166,13 +213,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
-    // 4. PREVENIR SUBMIT DEL FORMULARIO COMPLETAMENTE
+    // 4. PREVENIR SUBMIT DEL FORMULARIO
     // ---------------------------------------------------------
     chatForm.addEventListener("submit", (e) => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        console.log('Submit del formulario bloqueado');
         return false;
     });
 
@@ -180,32 +226,28 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        console.log('Submit del formulario bloqueado (captura)');
         return false;
     }, true);
 
     // ---------------------------------------------------------
-    // 5. EVENTO DEL BOTÓN DE ENVÍO - ✅ MODIFICADO CON NUEVOS ICONOS
+    // 5. EVENTO DEL BOTÓN DE ENVÍO
     // ---------------------------------------------------------
     sendButton.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        // ✅ Si está generando, detener la generación
         if (isGenerating) {
             stopGeneration();
             return;
         }
 
-        console.log('Botón clickeado');
         const text = userInput.value.trim();
         if (text !== '') {
             handleSendMessage(text);
         }
     });
 
-    // ✅ Función para detener la generación
     function stopGeneration() {
         isGenerating = false;
         sendButton.textContent = '⛰︎';
@@ -215,46 +257,47 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ---------------------------------------------------------
-    // 6. LÓGICA DE ENVÍO UNIFICADA CON MÚLTIPLES PROTECCIONES
+    // 6. LÓGICA DE ENVÍO - 🆕 CON VERIFICACIÓN DE TOKENS
     // ---------------------------------------------------------
     function handleSendMessage(text) {
         const currentTime = Date.now();
 
-        console.log('handleSendMessage llamado con:', text);
-        console.log('isSubmitting:', isSubmitting);
-        console.log('Tiempo desde último envío:', currentTime - lastSubmitTime, 'ms');
-
         if (currentTime - lastSubmitTime < DEBOUNCE_TIME) {
-            console.log('❌ BLOQUEADO: Debounce de tiempo');
             return;
         }
 
         if (isSubmitting) {
-            console.log('❌ BLOQUEADO: Envío en proceso');
             return;
         }
 
         if (!text || text.trim() === '') {
-            console.log('❌ BLOQUEADO: Texto vacío');
             return;
         }
 
         if (isComposing) {
-            console.log('❌ BLOQUEADO: Composición activa');
             return;
         }
 
-        console.log('✅ ENVIANDO MENSAJE');
+        // 🆕 VERIFICAR TOKENS ANTES DE ENVIAR
+        const estimatedTokens = estimateTokens(text) + estimateTokens(JSON.stringify(chatHistory));
+        const check = canSendMessage(estimatedTokens);
+
+        if (!check.allowed) {
+            addMessage(check.message, 'ia');
+            if (check.reason === 'token_limit') {
+                activateCooldown();
+            }
+            return;
+        }
 
         lastSubmitTime = currentTime;
         isSubmitting = true;
         isGenerating = true;
-        userScrolled = false; // ✅ Resetear scroll automático
-        autoScrollEnabled = true; // ✅ NUEVO: Activar explícitamente auto-scroll
+        userScrolled = false;
+        autoScrollEnabled = true;
         
-        // ✅ MODIFICADO: Cambiar botón a stop con nuevo icono
         sendButton.textContent = '◼︎';
-        sendButton.disabled = false; // Mantenerlo habilitado para poder detener
+        sendButton.disabled = false;
 
         const messageText = text;
         userInput.value = ""; 
@@ -273,18 +316,17 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         chatBox.appendChild(spinnerElement);
         
-        // ✅ FORZAR scroll inmediato
         requestAnimationFrame(() => {
             chatBox.scrollTop = chatBox.scrollHeight;
         });
 
-        sendToAPI(messageText, spinnerElement);
+        sendToAPI(messageText, spinnerElement, estimatedTokens);
     }
 
     // ---------------------------------------------------------
-    // 7. CONEXIÓN CON API - ✅ MODIFICADO
+    // 7. CONEXIÓN CON API - 🆕 CON MANEJO DE ERROR 429
     // ---------------------------------------------------------
-    async function sendToAPI(text, spinnerElement) {
+    async function sendToAPI(text, spinnerElement, estimatedTokens) {
         try {
             const backendUrl = '/api/chat'; 
 
@@ -297,24 +339,34 @@ document.addEventListener("DOMContentLoaded", () => {
                 }), 
             });
 
+            // 🆕 Manejo específico de error 429 (rate limit)
+            if (response.status === 429) {
+                if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
+                const errorData = await response.json();
+                addMessage(errorData.reply || '⏳ Servicio temporalmente saturado. Espera unos minutos.', 'ia');
+                activateCooldown();
+                return;
+            }
+
             if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
             const data = await response.json();
 
             if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
 
-            // ✅ Verificar si la generación fue detenida
             if (!isGenerating) {
-                console.log('Generación cancelada, no se muestra respuesta');
                 return;
             }
+
+            // 🆕 Registrar tokens usados
+            const responseTokens = estimateTokens(data.reply);
+            recordTokenUsage(estimatedTokens + responseTokens);
 
             await addMessageWithTyping(data.reply, "ia");
 
             chatHistory.push({ role: "user", text: text });
             chatHistory.push({ role: "ia", text: data.reply });
 
-            // ✅ Aplicar la regla de limitación del historial
             limitChatHistory();
 
         } catch (error) {
@@ -328,16 +380,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 isGenerating = false;
                 userInput.focus();
                 isSubmitting = false;
-                console.log('Interfaz reactivada');
             }, 100);
         }
     }
 
     // ---------------------------------------------------------
-    // 8. FUNCIONES DE VISUALIZACIÓN (EFECTOS) - ✅ MODIFICADO
+    // 8. FUNCIONES DE VISUALIZACIÓN (sin cambios)
     // ---------------------------------------------------------
 
-    // ✅ NUEVA FUNCIÓN: Hacer scroll de forma forzada
     function forceScrollToBottom() {
         if (autoScrollEnabled && !userScrolled) {
             requestAnimationFrame(() => {
@@ -346,7 +396,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Función A: Escribir con efecto máquina de escribir
     async function addMessageWithTyping(text, sender) {
         const messageElement = document.createElement("div");
         messageElement.classList.add("message", sender);
@@ -355,16 +404,13 @@ document.addEventListener("DOMContentLoaded", () => {
         messageElement.appendChild(textElement);
         chatBox.appendChild(messageElement);
 
-        // ✅ Scroll inmediato al agregar el elemento
         forceScrollToBottom();
 
         const parts = text.split('```');
         const typingSpeed = 15; 
 
         for (let i = 0; i < parts.length; i++) {
-            // ✅ Verificar si se detuvo la generación
             if (!isGenerating) {
-                console.log('Generación detenida durante el tipeo');
                 break;
             }
 
@@ -387,16 +433,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 codeBlock.appendChild(codeElement);
                 textElement.appendChild(codeBlock);
                 
-                // ✅ Scroll después de agregar bloque de código
                 forceScrollToBottom();
             }
         }
         
-        // ✅ Scroll final
         forceScrollToBottom();
     }
 
-    // Función Auxiliar: Escribir HTML nodo por nodo - ✅ MODIFICADO
     function typeHTML(element, html, speed) {
         return new Promise((resolve) => {
             let tempDiv = document.createElement('div');
@@ -405,7 +448,6 @@ document.addEventListener("DOMContentLoaded", () => {
             let currentIndex = 0;
 
             function typeNextNode() {
-                // ✅ Verificar si se detuvo la generación
                 if (!isGenerating) {
                     resolve();
                     return;
@@ -423,7 +465,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     let charIndex = 0;
 
                     function typeNextChar() {
-                        // ✅ Verificar si se detuvo la generación
                         if (!isGenerating) {
                             resolve();
                             return;
@@ -438,7 +479,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                             charIndex++;
                             
-                            // ✅ Usar función de scroll forzado
                             forceScrollToBottom();
                             
                             setTimeout(typeNextChar, speed);
@@ -474,7 +514,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Función B: Mostrar mensaje instantáneo (Usuario/Error)
     function addMessage(text, sender) {
         const messageElement = document.createElement("div");
         messageElement.classList.add("message", sender);
@@ -507,7 +546,6 @@ document.addEventListener("DOMContentLoaded", () => {
         messageElement.appendChild(textElement);
         chatBox.appendChild(messageElement);
         
-        // ✅ Forzar scroll inmediato
         requestAnimationFrame(() => {
             chatBox.scrollTop = chatBox.scrollHeight;
         });
