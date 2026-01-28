@@ -6,6 +6,120 @@
     <title>WhyAI</title>
     <link rel="stylesheet" href="style.css">
     <meta http-equiv="Cross-Origin-Resource-Policy" content="cross-origin">
+    <style>
+        /* ═══════════════════════════════════════════════════════════
+           ESTILOS PARA EL SISTEMA DE IMÁGENES
+           ═══════════════════════════════════════════════════════════ */
+        
+        /* Botón de imagen */
+        #image-button {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            margin-right: 8px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+        
+        #image-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        #image-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Input oculto para seleccionar imagen */
+        #image-input {
+            display: none;
+        }
+        
+        /* Contenedor de preview */
+        #preview-container {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        
+        /* Preview de la imagen */
+        #image-preview {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Información de la imagen */
+        .image-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .image-filename {
+            font-size: 13px;
+            color: #fff;
+            font-weight: 500;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .image-hint {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        /* Botón para eliminar imagen */
+        #remove-image {
+            background: rgba(255, 59, 48, 0.8);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        
+        #remove-image:hover {
+            background: rgba(255, 59, 48, 1);
+        }
+        
+        /* Ajustes para el área de input */
+        .input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 600px) {
+            #image-preview {
+                max-width: 80px;
+                max-height: 80px;
+            }
+            
+            .image-filename {
+                max-width: 150px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="chat-container">
@@ -15,42 +129,63 @@
                 <p id="greeting-message">Hola, soy WhyAI. ¿En qué puedo ayudarte hoy?</p>
             </div>
         </div>
+        
+        <!-- 🆕 Preview de imagen -->
+        <div id="preview-container">
+            <img id="image-preview" alt="Preview">
+            <div class="image-info">
+                <span class="image-filename">imagen.jpg</span>
+                <span class="image-hint">📸 Imagen lista para enviar</span>
+            </div>
+            <button id="remove-image" title="Eliminar imagen">✕</button>
+        </div>
+        
         <form class="input-area" id="chat-form">
             <input type="text" name="dummy" style="position:absolute; opacity:0; pointer-events:none; width:0; height:0;" tabindex="-1">
+            
+            <!-- 🆕 Input oculto para seleccionar imagen -->
+            <input type="file" id="image-input" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+            
             <div class="input-wrapper">
+                <!-- 🆕 Botón de imagen -->
+                <button id="image-button" type="button" title="Adjuntar imagen">📎</button>
+                
                 <textarea 
                     id="user-input" 
-                    placeholder="Escribe tu mensaje..." 
+                    placeholder="Escribe tu mensaje o adjunta una imagen..." 
                     autocomplete="off" 
                     spellcheck="false" 
                     enterkeyhint="enter"
                     rows="1"></textarea>
-                <button id="send-button" type="submit">⛰︎</button>
+                <button id="send-button" type="submit">⛰️</button>
             </div>
             <div class="disclaimer" id="disclaimer">WhyAI puede cometer errores. Comprueba la información importante.</div>
         </form>
     </div>
+    
     <script>
         // Textos en diferentes idiomas
         const translations = {
             es: {
                 greeting: "Hola, soy WhyAI. ¿En qué puedo ayudarte hoy?",
-                placeholder: "Escribe tu mensaje...",
+                placeholder: "Escribe tu mensaje o adjunta una imagen...",
                 button: "Enviar",
                 disclaimer: "WhyAI puede cometer errores. Comprueba la información importante."
             },
             en: {
                 greeting: "Hello, I'm WhyAI. How can I help you today?",
-                placeholder: "Type your message...",
+                placeholder: "Type your message or attach an image...",
                 button: "Send",
                 disclaimer: "WhyAI can make mistakes. Check important information."
             }
         };
+        
         // Países de habla hispana (códigos ISO)
         const spanishSpeakingCountries = [
             'ES', 'MX', 'AR', 'CO', 'VE', 'PE', 'CL', 'EC', 'GT', 'CU',
             'BO', 'DO', 'HN', 'PY', 'SV', 'NI', 'CR', 'PA', 'UY', 'GQ'
         ];
+        
         // Función para detectar el idioma basado en la región
         async function detectLanguage() {
             try {
@@ -72,6 +207,7 @@
                 return language;
             }
         }
+        
         // Función para aplicar las traducciones
         function applyTranslations(lang) {
             const texts = translations[lang];
@@ -82,6 +218,7 @@
             document.getElementById('disclaimer').textContent = texts.disclaimer;
             document.documentElement.lang = lang;
         }
+        
         // Detectar y aplicar el idioma al cargar la página
         detectLanguage().then(lang => {
             applyTranslations(lang);
