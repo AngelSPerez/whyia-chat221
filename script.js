@@ -20,14 +20,47 @@ document.addEventListener("DOMContentLoaded", () => {
     let lastSubmitTime = 0;
     const DEBOUNCE_TIME = 500;
     let userScrolled = false; // ✅ Detectar si el usuario hizo scroll
+    let autoScrollEnabled = true; // ✅ NUEVO: Control explícito de auto-scroll
 
     // ✅ Detectar si es dispositivo móvil
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-    // ✅ Detectar scroll manual del usuario
+    // ✅ MEJORADO: Detectar scroll manual del usuario de forma más precisa
+    let lastScrollTop = 0;
+    let scrollTimeout;
+
     chatBox.addEventListener('scroll', () => {
-        const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop <= chatBox.clientHeight + 100;
-        userScrolled = !isAtBottom;
+        // Detectar dirección del scroll
+        const currentScrollTop = chatBox.scrollTop;
+        const scrollingUp = currentScrollTop < lastScrollTop;
+        lastScrollTop = currentScrollTop;
+
+        // Si el usuario scrollea hacia arriba, desactivar auto-scroll
+        if (scrollingUp) {
+            userScrolled = true;
+            autoScrollEnabled = false;
+            console.log('Usuario scrolleó hacia arriba - auto-scroll desactivado');
+        } else {
+            // Si scrollea hacia abajo, verificar si llegó al final
+            const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop <= chatBox.clientHeight + 5;
+            if (isAtBottom) {
+                userScrolled = false;
+                autoScrollEnabled = true;
+                console.log('Usuario en el fondo - auto-scroll activado');
+            }
+        }
+
+        // Limpiar timeout anterior
+        clearTimeout(scrollTimeout);
+        
+        // Después de 100ms sin scroll, verificar posición final
+        scrollTimeout = setTimeout(() => {
+            const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop <= chatBox.clientHeight + 5;
+            if (isAtBottom) {
+                userScrolled = false;
+                autoScrollEnabled = true;
+            }
+        }, 100);
     });
 
     // ---------------------------------------------------------
@@ -77,7 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------------------------------------
-    // 3. CONTROL DE TECLADO (ULTRA PROTEGIDO) - ✅ CORREGIDO
+    // 3. CONTROL DE TECLADO - ✅ TOTALMENTE CORREGIDO
     // ---------------------------------------------------------
     let enterPressed = false;
 
@@ -87,19 +120,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // ✅ CORREGIDO: Solo bloquear Enter para envío, NO otras teclas
-        if (e.key === 'Enter' && !e.shiftKey) {
-            // ✅ Bloquear envío solo si está generando
+        // ✅ CORREGIDO: Solo controlar Enter en ESCRITORIO
+        if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
+            // Solo en escritorio: enviar mensaje o bloquear si está generando
             if (isSubmitting) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
                 console.log('Bloqueado: envío en proceso');
-                return;
-            }
-
-            if (isMobile) {
-                // En móvil: permitir salto de línea normal
                 return;
             }
             
@@ -124,10 +152,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.log('Enter bloqueado: ya fue presionado');
             }
         }
-        // ✅ TODAS las demás teclas funcionan normalmente (Backspace, Delete, flechas, etc.)
+        // ✅ En móvil: Enter funciona COMPLETAMENTE NORMAL (salto de línea)
+        // ✅ Todas las demás teclas funcionan normalmente (Backspace, Delete, flechas, etc.)
     });
 
     userInput.addEventListener('keyup', function(e) {
+        // Solo prevenir en escritorio
         if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
             e.preventDefault();
             e.stopPropagation();
@@ -178,7 +208,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ✅ Función para detener la generación
     function stopGeneration() {
         isGenerating = false;
-        sendButton.textContent = '⛰︎'; // ✅ NUEVO ICONO
+        sendButton.textContent = '⛰︎';
         sendButton.disabled = false;
         userInput.focus();
         console.log('Generación detenida por el usuario');
@@ -220,9 +250,10 @@ document.addEventListener("DOMContentLoaded", () => {
         isSubmitting = true;
         isGenerating = true;
         userScrolled = false; // ✅ Resetear scroll automático
+        autoScrollEnabled = true; // ✅ NUEVO: Activar explícitamente auto-scroll
         
         // ✅ MODIFICADO: Cambiar botón a stop con nuevo icono
-        sendButton.textContent = '◼︎'; // ✅ NUEVO ICONO
+        sendButton.textContent = '◼︎';
         sendButton.disabled = false; // Mantenerlo habilitado para poder detener
 
         const messageText = text;
@@ -241,7 +272,11 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
         `;
         chatBox.appendChild(spinnerElement);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        
+        // ✅ FORZAR scroll inmediato
+        requestAnimationFrame(() => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
 
         sendToAPI(messageText, spinnerElement);
     }
@@ -289,7 +324,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } finally {
             setTimeout(() => {
                 sendButton.disabled = false;
-                sendButton.textContent = '⛰︎'; // ✅ NUEVO ICONO
+                sendButton.textContent = '⛰︎';
                 isGenerating = false;
                 userInput.focus();
                 isSubmitting = false;
@@ -302,6 +337,15 @@ document.addEventListener("DOMContentLoaded", () => {
     // 8. FUNCIONES DE VISUALIZACIÓN (EFECTOS) - ✅ MODIFICADO
     // ---------------------------------------------------------
 
+    // ✅ NUEVA FUNCIÓN: Hacer scroll de forma forzada
+    function forceScrollToBottom() {
+        if (autoScrollEnabled && !userScrolled) {
+            requestAnimationFrame(() => {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+        }
+    }
+
     // Función A: Escribir con efecto máquina de escribir
     async function addMessageWithTyping(text, sender) {
         const messageElement = document.createElement("div");
@@ -310,6 +354,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const textElement = document.createElement("p");
         messageElement.appendChild(textElement);
         chatBox.appendChild(messageElement);
+
+        // ✅ Scroll inmediato al agregar el elemento
+        forceScrollToBottom();
 
         const parts = text.split('```');
         const typingSpeed = 15; 
@@ -339,13 +386,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 codeElement.textContent = codeText;
                 codeBlock.appendChild(codeElement);
                 textElement.appendChild(codeBlock);
+                
+                // ✅ Scroll después de agregar bloque de código
+                forceScrollToBottom();
             }
         }
         
-        // ✅ Scroll final solo si el usuario no hizo scroll manual
-        if (!userScrolled) {
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
+        // ✅ Scroll final
+        forceScrollToBottom();
     }
 
     // Función Auxiliar: Escribir HTML nodo por nodo - ✅ MODIFICADO
@@ -390,10 +438,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                             charIndex++;
                             
-                            // ✅ Solo hacer scroll si el usuario no scrolleó manualmente
-                            if (!userScrolled) {
-                                chatBox.scrollTop = chatBox.scrollHeight;
-                            }
+                            // ✅ Usar función de scroll forzado
+                            forceScrollToBottom();
                             
                             setTimeout(typeNextChar, speed);
                         } else {
@@ -460,6 +506,10 @@ document.addEventListener("DOMContentLoaded", () => {
         textElement.innerHTML = processedText;
         messageElement.appendChild(textElement);
         chatBox.appendChild(messageElement);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        
+        // ✅ Forzar scroll inmediato
+        requestAnimationFrame(() => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
     }
 });
