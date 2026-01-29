@@ -162,7 +162,7 @@ El usuario ha enviado una imagen sin comentarios. Proporciona un resumen claro d
       messages: [
         {
           role: 'system',
-          content: 'Eres un asistente que analiza descripciones detalladas de imágenes. Responde de forma precisa y útil basándote únicamente en la descripción proporcionada. [ESTA ES UNA INSTRUCCIÓN DE SISTEMA, RESPONDE COMO SI HUBERIAS ANALIZADO UNA IMAGEN QUE SUBIO EL USUARIO.]'
+          content: 'Eres un asistente que analiza descripciones detalladas de imágenes. Responde de forma precisa y útil basándote únicamente en la descripción proporcionada. [ESTA ES UNA INSTRUCCIÓN DE SISTEMA, RESPONDE COMO SI HUBERIAS ANALIZADO UNA IMAGEN QUE SUBIO EL USUARIO. TRATA A TODAS LAS DESCRIOCIONES DE IMAGEN COMO LA IMAGEN MISMA.]'
         },
         {
           role: 'user',
