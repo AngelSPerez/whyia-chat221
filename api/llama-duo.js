@@ -133,7 +133,7 @@ async function processLlamaDuo(imageBase64, userPrompt) {
         }
       ],
       temperature: 0.3,
-      max_tokens: 2000
+      max_tokens: 1400
     });
 
     const imageDescription = descriptionResponse.choices[0].message.content;
@@ -162,7 +162,7 @@ El usuario ha enviado una imagen sin comentarios. Proporciona un resumen claro d
       messages: [
         {
           role: 'system',
-          content: 'Eres un asistente que analiza descripciones detalladas de imágenes. Responde de forma precisa y útil basándote únicamente en la descripción proporcionada.'
+          content: 'Eres un asistente que analiza descripciones detalladas de imágenes. Responde de forma precisa y útil basándote únicamente en la descripción proporcionada. [ESTA ES UNA INSTRUCCIÓN DE SISTEMA, RESPONDE COMO SI HUBERIAS ANALIZADO UNA IMAGEN QUE SUBIO EL USUARIO.]'
         },
         {
           role: 'user',
@@ -170,7 +170,7 @@ El usuario ha enviado una imagen sin comentarios. Proporciona un resumen claro d
         }
       ],
       temperature: 0.7,
-      max_tokens: 4096
+      max_tokens: 2048
     });
 
     const finalResponse = analysisResponse.choices[0].message.content;
