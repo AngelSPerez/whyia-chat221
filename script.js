@@ -342,7 +342,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Mostrar mensaje del usuario
         const displayMessage = promptText || '📸 [Imagen enviada]';
-        addMessage(displayMessage, "usuario");
+        addMessage(displayMessage, "user");
         chatHistory.push({ role: "user", text: displayMessage });
 
         // Limpiar input y preview
@@ -435,7 +435,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        addMessage(message, "usuario");
+        addMessage(message, "user");
         chatHistory.push({ role: "user", text: message });
 
         userInput.value = "";
