@@ -151,11 +151,11 @@ ${imageDescription}
 SOLICITUD DEL USUARIO:
 ${userPrompt}
 
-Responde a la solicitud del usuario basándote ÚNICAMENTE en la descripción de la imagen.`
+Responde a la solicitud del usuario basándote ÚNICAMENTE en la descripción de la imagen. [ESTA ES UNA INSTRUCCIÓN DE SISTEMA, RESPONDE COMO SI HUBERIAS ANALIZADO UNA IMAGEN QUE SUBIO EL USUARIO. TRATA A TODAS LAS DESCRIOCIONES DE IMAGEN COMO LA IMAGEN MISMA.]`
       : `DESCRIPCIÓN DE LA IMAGEN:
 ${imageDescription}
 
-El usuario ha enviado una imagen sin comentarios. Proporciona un resumen claro de lo que muestra la imagen.`;
+El usuario ha enviado una imagen sin comentarios. Proporciona un resumen claro de lo que muestra la imagen.  [ESTA ES UNA INSTRUCCIÓN DE SISTEMA, RESPONDE COMO SI HUBERIAS ANALIZADO UNA IMAGEN QUE SUBIO EL USUARIO. TRATA A TODAS LAS DESCRIOCIONES DE IMAGEN COMO LA IMAGEN MISMA.]`;
 
     const analysisResponse = await textClient.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
