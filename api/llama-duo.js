@@ -1,64 +1,50 @@
 import OpenAI from 'openai';
 
 // ============================================
-// CONFIGURACIÓN DE MODELOS
-// ============================================
-
-const MODELS = {
-  // Modelo 1: Visión (describe la imagen)
-  DUO_1: {
-    client: new OpenAI({
-      apiKey: process.env.GROQ_API_KEY_2,
-      baseURL: 'https://api.groq.com/openai/v1',
-    }),
-    model: 'llama-4-scout-17b-16e-instruct', // Modelo con capacidad de visión
-    systemPrompt: `Eres un asistente experto en análisis visual. Tu única tarea es describir imágenes de forma extremadamente detallada y precisa.
-
-INSTRUCCIONES ESTRICTAS:
-1. Describe TODO lo que ves en la imagen sin omitir ningún detalle
-2. Incluye: personas (edad aproximada, género, ropa, expresiones, posiciones), objetos (tamaños, colores, materiales, ubicación), acciones, escenarios, iluminación, colores dominantes, atmósfera, contexto
-3. Sé específico con cantidades, posiciones relativas y características visuales
-4. Organiza la descripción de forma lógica: primero el contexto general, luego los elementos principales, finalmente los detalles secundarios
-5. NO hagas análisis, interpretaciones ni conclusiones
-6. NO respondas preguntas del usuario
-7. SOLO describe lo que ves objetivamente
-
-Tu descripción será usada por otro modelo que no puede ver la imagen, así que debe ser completa y clara.`
-  },
-
-  // Modelo 2: Razonamiento (procesa la descripción)
-  DUO_2: {
-    client: new OpenAI({
-      apiKey: process.env.GROQ_API_KEY,
-      baseURL: 'https://api.groq.com/openai/v1',
-    }),
-    model: 'llama-3.3-70b-versatile', // Modelo potente para análisis
-    systemPrompt: `Eres un asistente inteligente que analiza descripciones detalladas de imágenes para responder preguntas o realizar tareas específicas.
-
-IMPORTANTE:
-- Recibirás una descripción textual EXTREMADAMENTE DETALLADA de una imagen
-- Esta descripción ha sido generada por un modelo de visión que vio la imagen directamente
-- Tu trabajo es usar ÚNICAMENTE esa descripción para responder la solicitud del usuario
-- Sé preciso, útil y responde exactamente lo que el usuario pide
-- Si la descripción no contiene información suficiente para responder, indícalo claramente
-- Responde en el mismo idioma que el usuario utilizó en su pregunta`
-  }
-};
-
-// ============================================
-// CONFIGURACIÓN DE CORS Y RATE LIMITING
+// CONFIGURACIÓN
 // ============================================
 
 const ALLOWED_ORIGINS = [
   'https://angelsperez.github.io',
   'https://whyia-chat221.vercel.app',
   'http://localhost:3000',
-  'http://127.0.0.1:5500' // Para desarrollo local
+  'http://127.0.0.1:5500'
 ];
 
+// Rate limiting
 const requestLog = new Map();
-const MAX_REQUESTS = 5; // Máximo 5 imágenes por minuto (más restrictivo)
+const MAX_REQUESTS = 5;
 const TIME_WINDOW = 60000;
+
+// ============================================
+// CLIENTES GROQ
+// ============================================
+
+function getVisionClient() {
+  if (!process.env.GROQ_API_KEY_2) {
+    throw new Error('GROQ_API_KEY_2 no configurada');
+  }
+  
+  return new OpenAI({
+    apiKey: process.env.GROQ_API_KEY_2,
+    baseURL: 'https://api.groq.com/openai/v1',
+  });
+}
+
+function getTextClient() {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY no configurada');
+  }
+  
+  return new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1',
+  });
+}
+
+// ============================================
+// FUNCIONES AUXILIARES
+// ============================================
 
 function checkRateLimit(ip) {
   const now = Date.now();
@@ -74,28 +60,28 @@ function checkRateLimit(ip) {
   return true;
 }
 
-// ============================================
-// VALIDACIÓN DE IMAGEN BASE64
-// ============================================
-
 function validateBase64Image(base64String) {
   try {
-    // Verificar formato data:image/...;base64,...
+    if (!base64String || typeof base64String !== 'string') {
+      return { valid: false, error: 'No se recibió imagen válida' };
+    }
+
     const matches = base64String.match(/^data:image\/(png|jpg|jpeg|gif|webp);base64,(.+)$/);
     if (!matches) {
-      return { valid: false, error: 'Formato de imagen inválido' };
+      return { valid: false, error: 'Formato de imagen inválido. Usa PNG, JPG, GIF o WEBP' };
     }
 
     const imageType = matches[1];
     const base64Data = matches[2];
 
-    // Calcular tamaño aproximado (Base64 aumenta ~33% el tamaño)
     const sizeInBytes = (base64Data.length * 3) / 4;
     const sizeInMB = sizeInBytes / (1024 * 1024);
 
-    // Límite: 5MB
     if (sizeInMB > 5) {
-      return { valid: false, error: `Imagen demasiado grande (${sizeInMB.toFixed(2)}MB). Máximo: 5MB` };
+      return { 
+        valid: false, 
+        error: `Imagen demasiado grande (${sizeInMB.toFixed(2)}MB). Máximo: 5MB` 
+      };
     }
 
     return { 
@@ -110,32 +96,32 @@ function validateBase64Image(base64String) {
 }
 
 // ============================================
-// FUNCIÓN PRINCIPAL: PROCESAMIENTO LLAMA DUO
+// PROCESAMIENTO LLAMA DUO
 // ============================================
 
 async function processLlamaDuo(imageBase64, userPrompt) {
-  console.log('🔄 Iniciando LLaMA Duo...');
+  const visionClient = getVisionClient();
+  const textClient = getTextClient();
   
   // ──────────────────────────────────────────
-  // PASO 1: GENERAR DESCRIPCIÓN DE LA IMAGEN
+  // PASO 1: DESCRIPCIÓN DE IMAGEN CON LLAMA-4-SCOUT
   // ──────────────────────────────────────────
-  console.log('📸 Paso 1: Generando descripción de la imagen...');
+  console.log('📸 LLaMA Duo 1 (Scout): Generando descripción...');
   
-  let imageDescription;
   try {
-    const descriptionResponse = await MODELS.DUO_1.client.chat.completions.create({
-      model: MODELS.DUO_1.model,
+    const descriptionResponse = await visionClient.chat.completions.create({
+      model: 'llama-4-scout-17b-16e-instruct',
       messages: [
         {
           role: 'system',
-          content: MODELS.DUO_1.systemPrompt
+          content: 'Eres un asistente experto en análisis visual. Describe imágenes de forma extremadamente detallada. Incluye: personas, objetos, acciones, escenarios, colores, expresiones, contexto. Sé específico. NO hagas análisis ni interpretaciones. SOLO describe objetivamente.'
         },
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: 'Describe esta imagen con el máximo detalle posible siguiendo las instrucciones del sistema.'
+              text: 'Describe con máximo detalle todos los elementos visibles en esta imagen.'
             },
             {
               type: 'image_url',
@@ -146,25 +132,18 @@ async function processLlamaDuo(imageBase64, userPrompt) {
           ]
         }
       ],
-      temperature: 0.3, // Baja temperatura para descripciones precisas
+      temperature: 0.3,
       max_tokens: 2000
     });
 
-    imageDescription = descriptionResponse.choices[0].message.content;
-    console.log('✅ Descripción generada:', imageDescription.substring(0, 150) + '...');
+    const imageDescription = descriptionResponse.choices[0].message.content;
+    console.log('✅ Descripción generada:', imageDescription.substring(0, 100) + '...');
     
-  } catch (error) {
-    console.error('❌ Error en LLaMA Duo 1:', error);
-    throw new Error(`Error al analizar la imagen: ${error.message}`);
-  }
-
-  // ──────────────────────────────────────────
-  // PASO 2: PROCESAR LA DESCRIPCIÓN CON EL PROMPT DEL USUARIO
-  // ──────────────────────────────────────────
-  console.log('🧠 Paso 2: Procesando con LLaMA Duo 2...');
-  
-  try {
-    // Construir el prompt combinando descripción + solicitud del usuario
+    // ──────────────────────────────────────────
+    // PASO 2: ANÁLISIS CON LLAMA-3.3-70B
+    // ──────────────────────────────────────────
+    console.log('🧠 LLaMA Duo 2 (70B): Procesando solicitud...');
+    
     const finalPrompt = userPrompt 
       ? `DESCRIPCIÓN DE LA IMAGEN:
 ${imageDescription}
@@ -172,18 +151,18 @@ ${imageDescription}
 SOLICITUD DEL USUARIO:
 ${userPrompt}
 
-Responde a la solicitud del usuario basándote ÚNICAMENTE en la descripción de la imagen proporcionada.`
+Responde a la solicitud del usuario basándote ÚNICAMENTE en la descripción de la imagen.`
       : `DESCRIPCIÓN DE LA IMAGEN:
 ${imageDescription}
 
-El usuario ha enviado una imagen sin comentarios adicionales. Proporciona un resumen claro y útil de lo que muestra la imagen basándote en la descripción.`;
+El usuario ha enviado una imagen sin comentarios. Proporciona un resumen claro de lo que muestra la imagen.`;
 
-    const analysisResponse = await MODELS.DUO_2.client.chat.completions.create({
-      model: MODELS.DUO_2.model,
+    const analysisResponse = await textClient.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
       messages: [
         {
           role: 'system',
-          content: MODELS.DUO_2.systemPrompt
+          content: 'Eres un asistente que analiza descripciones detalladas de imágenes. Responde de forma precisa y útil basándote únicamente en la descripción proporcionada.'
         },
         {
           role: 'user',
@@ -204,17 +183,31 @@ El usuario ha enviado una imagen sin comentarios adicionales. Proporciona un res
     };
     
   } catch (error) {
-    console.error('❌ Error en LLaMA Duo 2:', error);
-    throw new Error(`Error al procesar la solicitud: ${error.message}`);
+    console.error('❌ Error en procesamiento:', error);
+    
+    // Manejar errores específicos de Groq
+    if (error.status === 429) {
+      throw new Error('El servicio está saturado. Intenta en unos segundos.');
+    }
+    
+    if (error.status === 401) {
+      throw new Error('Error de autenticación con el servicio.');
+    }
+    
+    if (error.message?.includes('vision') || error.message?.includes('scout')) {
+      throw new Error('El modelo de visión no está disponible temporalmente.');
+    }
+    
+    throw new Error(`Error al procesar: ${error.message || 'Error desconocido'}`);
   }
 }
 
 // ============================================
-// HANDLER PRINCIPAL DE LA API
+// HANDLER PRINCIPAL
 // ============================================
 
 export default async function handler(req, res) {
-  // ──── CORS ────
+  // CORS
   const origin = req.headers.origin;
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -229,32 +222,34 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ 
       success: false,
-      error: 'Método no permitido' 
+      error: 'Método no permitido. Usa POST.' 
     });
   }
 
-  // ──── RATE LIMITING ────
+  // Rate Limiting
   const ip = req.headers['x-forwarded-for']?.split(',')[0] || 
              req.headers['x-real-ip'] || 
-             req.socket.remoteAddress || 
+             req.socket?.remoteAddress || 
              'unknown';
 
   if (!checkRateLimit(ip)) {
     return res.status(429).json({ 
       success: false,
-      error: 'Has excedido el límite de procesamiento de imágenes. Espera un minuto antes de enviar otra.' 
+      error: 'Demasiadas peticiones. Espera un minuto antes de enviar otra imagen.' 
     });
   }
 
-  // ──── PROCESAMIENTO ────
+  // Procesamiento
   try {
+    console.log('🔄 Nueva petición de imagen desde:', ip);
+    
     const { imageBase64, prompt } = req.body;
 
-    // Validar que se envió una imagen
+    // Validar que se envió imagen
     if (!imageBase64) {
       return res.status(400).json({ 
         success: false,
-        error: 'No se recibió ninguna imagen' 
+        error: 'No se recibió ninguna imagen. Incluye "imageBase64" en el body.' 
       });
     }
 
@@ -267,34 +262,57 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`📊 Imagen recibida: ${validation.imageType}, ${validation.size}MB`);
-    console.log(`📝 Prompt del usuario: ${prompt || '(sin prompt)'}`);
+    console.log(`📊 Imagen válida: ${validation.imageType}, ${validation.size}MB`);
+    console.log(`📝 Prompt: ${prompt || '(sin prompt)'}`);
+
+    // Verificar API keys
+    if (!process.env.GROQ_API_KEY_2) {
+      console.error('❌ GROQ_API_KEY_2 no configurada (modelo de visión)');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Servicio de visión no configurado correctamente.' 
+      });
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      console.error('❌ GROQ_API_KEY no configurada (modelo de texto)');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Servicio de análisis no configurado correctamente.' 
+      });
+    }
 
     // Ejecutar LLaMA Duo
     const result = await processLlamaDuo(imageBase64, prompt || '');
 
-    // Devolver respuesta exitosa
+    // Respuesta exitosa
     return res.status(200).json({
       success: true,
-      reply: result.response,
-      // Opcionalmente, devolver la descripción para debugging
-      // description: result.description 
+      reply: result.response
     });
 
   } catch (error) {
     console.error('💥 Error en handler:', error);
     
-    // Manejo especial para rate limit de Groq
-    if (error.status === 429) {
+    // Respuestas específicas por tipo de error
+    if (error.message?.includes('saturado') || error.message?.includes('429')) {
       return res.status(429).json({ 
         success: false,
-        error: 'El servicio está temporalmente saturado. Intenta en unos segundos.' 
+        error: 'El servicio está saturado. Intenta de nuevo en unos segundos.' 
       });
     }
     
+    if (error.message?.includes('autenticación')) {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Error de configuración del servicio.' 
+      });
+    }
+    
+    // Error genérico
     return res.status(500).json({ 
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error.message || 'Error al procesar la imagen. Inténtalo de nuevo.' 
     });
   }
 }
