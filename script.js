@@ -359,7 +359,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             // Indicador de procesamiento
-            const loadingMsg = addMessage('🔄 Analizando imagen con LLaMA Duo...', 'ia');
+            const loadingMsg = addMessage('🔄 Analizando imagen con WhyAI Duo...', 'ia');
 
             // Llamar al endpoint de LLaMA Duo
             const response = await fetch('/api/llama-duo', {
