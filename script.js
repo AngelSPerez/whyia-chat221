@@ -6,6 +6,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const userInput = document.getElementById("user-input");
     const chatBox = document.getElementById("chat-box");
     const sendButton = document.getElementById("send-button");
+    
+    // 🆕 Referencias para imágenes
     const imageButton = document.getElementById("image-button");
     const imageInput = document.getElementById("image-input");
     const imagePreview = document.getElementById("image-preview");
@@ -13,9 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const removeImageBtn = document.getElementById("remove-image");
 
     // ═══════════════════════════════════════════════════════════
-    // VARIABLES GLOBALES
+    // REGLAS PARA LA IA
     // ═══════════════════════════════════════════════════════════
-    
+
     let chatHistory = [
         {
             role: "user",
@@ -31,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let userScrolled = false;
     let autoScrollEnabled = true;
 
-    // 🆕 Control de tokens y cooldown
+    // Control de tokens y cooldown
     let tokenUsageLog = [];
     let isInCooldown = false;
     const TOKEN_LIMIT_PER_MINUTE = 10000;
@@ -41,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentImageBase64 = null;
     let currentImageFile = null;
 
-    // ✅ Detectar si es dispositivo móvil
+    // Detectar si es dispositivo móvil
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
     let lastScrollTop = 0;
@@ -148,67 +150,56 @@ document.addEventListener("DOMContentLoaded", () => {
     // 🆕 MANEJO DE IMÁGENES
     // ═══════════════════════════════════════════════════════════
 
-    // Abrir selector de archivos
-    imageButton.addEventListener('click', () => {
-        imageInput.click();
-    });
+    if (imageButton && imageInput) {
+        imageButton.addEventListener('click', () => {
+            imageInput.click();
+        });
 
-    // Procesar imagen seleccionada
-    imageInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        imageInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        // Validar tipo de archivo
-        const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
-        if (!validTypes.includes(file.type)) {
-            addMessage('❌ Solo se permiten imágenes PNG, JPG, GIF o WEBP', 'ia');
-            return;
+            const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+                addMessage('❌ Solo se permiten imágenes PNG, JPG, GIF o WEBP', 'ia');
+                return;
+            }
+
+            const maxSize = 5 * 1024 * 1024;
+            if (file.size > maxSize) {
+                addMessage(`❌ Imagen muy grande (${(file.size/1024/1024).toFixed(2)}MB). Máx: 5MB`, 'ia');
+                return;
+            }
+
+            try {
+                imageButton.innerHTML = '⏳';
+                imageButton.disabled = true;
+
+                const base64 = await fileToBase64(file);
+                currentImageBase64 = base64;
+                currentImageFile = file;
+
+                showImagePreview(base64, file.name);
+
+                imageButton.innerHTML = '📎';
+                imageButton.disabled = false;
+                userInput.focus();
+            } catch (error) {
+                addMessage('❌ Error al procesar la imagen', 'ia');
+                imageButton.innerHTML = '📎';
+                imageButton.disabled = false;
+            }
+
+            imageInput.value = '';
+        });
+
+        if (removeImageBtn) {
+            removeImageBtn.addEventListener('click', () => {
+                clearImagePreview();
+            });
         }
+    }
 
-        // Validar tamaño (máximo 5MB)
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        if (file.size > maxSize) {
-            addMessage(`❌ La imagen es demasiado grande (${(file.size / 1024 / 1024).toFixed(2)}MB). Máximo: 5MB`, 'ia');
-            return;
-        }
-
-        try {
-            // Mostrar indicador de carga
-            imageButton.innerHTML = '⏳';
-            imageButton.disabled = true;
-
-            // Convertir a Base64
-            const base64 = await fileToBase64(file);
-            currentImageBase64 = base64;
-            currentImageFile = file;
-
-            // Mostrar preview
-            showImagePreview(base64, file.name);
-
-            // Restaurar botón
-            imageButton.innerHTML = '📎';
-            imageButton.disabled = false;
-
-            // Focus en el input
-            userInput.focus();
-
-        } catch (error) {
-            console.error('Error al procesar imagen:', error);
-            addMessage('❌ Error al procesar la imagen. Inténtalo de nuevo.', 'ia');
-            imageButton.innerHTML = '📎';
-            imageButton.disabled = false;
-        }
-
-        // Limpiar input
-        imageInput.value = '';
-    });
-
-    // Eliminar imagen
-    removeImageBtn.addEventListener('click', () => {
-        clearImagePreview();
-    });
-
-    // Convertir archivo a Base64
     function fileToBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -218,19 +209,20 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Mostrar preview de la imagen
     function showImagePreview(base64, filename) {
-        imagePreview.src = base64;
-        previewContainer.style.display = 'flex';
-        previewContainer.querySelector('.image-filename').textContent = filename;
+        if (imagePreview && previewContainer) {
+            imagePreview.src = base64;
+            previewContainer.style.display = 'flex';
+            const filenameEl = previewContainer.querySelector('.image-filename');
+            if (filenameEl) filenameEl.textContent = filename;
+        }
     }
 
-    // Limpiar preview
     function clearImagePreview() {
         currentImageBase64 = null;
         currentImageFile = null;
-        imagePreview.src = '';
-        previewContainer.style.display = 'none';
+        if (imagePreview) imagePreview.src = '';
+        if (previewContainer) previewContainer.style.display = 'none';
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -263,105 +255,158 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ═══════════════════════════════════════════════════════════
-    // ENVÍO DE MENSAJES CON ENTER
+    // CONTROL DE TECLADO
     // ═══════════════════════════════════════════════════════════
     
-    userInput.addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter') {
-            if (isMobile || e.shiftKey) {
+    let enterPressed = false;
+
+    userInput.addEventListener('keydown', function(e) {
+        if (isComposing || e.isComposing || e.keyCode === 229) {
+            return;
+        }
+
+        if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
+            if (isSubmitting) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
                 return;
             }
-
-            if (isComposing) {
-                return;
-            }
-
-            e.preventDefault();
             
-            const now = Date.now();
-            if (now - lastSubmitTime < DEBOUNCE_TIME) {
-                console.log('Envío bloqueado por debounce');
-                return;
+            e.preventDefault(); 
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+
+            if (!enterPressed) {
+                enterPressed = true;
+
+                const text = this.value.trim();
+                const hasImage = currentImageBase64 !== null;
+                
+                if (text !== '' || hasImage) {
+                    // 🆕 Si hay imagen, usar flujo LLaMA Duo
+                    if (hasImage) {
+                        handleSendImage(text);
+                    } else {
+                        handleSendMessage(text);
+                    }
+                }
+
+                setTimeout(() => {
+                    enterPressed = false;
+                }, DEBOUNCE_TIME);
             }
-            lastSubmitTime = now;
+        }
+    });
 
-            await handleSubmit(e);
+    userInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
         }
     });
 
     // ═══════════════════════════════════════════════════════════
-    // ENVÍO DEL FORMULARIO
+    // PREVENIR SUBMIT DEL FORMULARIO
     // ═══════════════════════════════════════════════════════════
     
-    chatForm.addEventListener("submit", async (e) => {
+    chatForm.addEventListener("submit", (e) => {
         e.preventDefault();
-        
-        const now = Date.now();
-        if (now - lastSubmitTime < DEBOUNCE_TIME) {
-            console.log('Envío bloqueado por debounce');
-            return;
-        }
-        lastSubmitTime = now;
-
-        await handleSubmit(e);
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
     });
 
+    chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+    }, true);
+
     // ═══════════════════════════════════════════════════════════
-    // 🆕 HANDLER DE ENVÍO (TEXTO O IMAGEN)
+    // EVENTO DEL BOTÓN DE ENVÍO
     // ═══════════════════════════════════════════════════════════
     
-    async function handleSubmit(e) {
-        if (isSubmitting) {
-            console.log('Ya hay un envío en proceso');
+    sendButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        if (isGenerating) {
+            stopGeneration();
             return;
         }
 
-        const userMessage = userInput.value.trim();
+        const text = userInput.value.trim();
         const hasImage = currentImageBase64 !== null;
-
-        // Validar que hay contenido
-        if (!userMessage && !hasImage) {
-            return;
+        
+        if (text !== '' || hasImage) {
+            // 🆕 Si hay imagen, usar flujo LLaMA Duo
+            if (hasImage) {
+                handleSendImage(text);
+            } else {
+                handleSendMessage(text);
+            }
         }
+    });
 
-        // Si hay imagen, usar flujo LLaMA Duo
-        if (hasImage) {
-            await sendImageMessage(userMessage);
-        } else {
-            await sendTextMessage(userMessage);
-        }
+    function stopGeneration() {
+        isGenerating = false;
+        sendButton.textContent = '⛰︎';
+        sendButton.disabled = false;
+        userInput.focus();
+        console.log('Generación detenida por el usuario');
     }
 
     // ═══════════════════════════════════════════════════════════
     // 🆕 ENVIAR MENSAJE CON IMAGEN (LLAMA DUO)
     // ═══════════════════════════════════════════════════════════
     
-    async function sendImageMessage(promptText) {
+    async function handleSendImage(promptText) {
+        const currentTime = Date.now();
+
+        if (currentTime - lastSubmitTime < DEBOUNCE_TIME) return;
+        if (isSubmitting) return;
+        if (isComposing) return;
+
+        lastSubmitTime = currentTime;
         isSubmitting = true;
         isGenerating = true;
+        userScrolled = false;
+        autoScrollEnabled = true;
 
-        // Mostrar mensaje del usuario
+        sendButton.textContent = '◼︎';
+        sendButton.disabled = false;
+
         const displayMessage = promptText || '📸 [Imagen enviada]';
         addMessage(displayMessage, "user");
-        chatHistory.push({ role: "user", text: displayMessage });
 
-        // Limpiar input y preview
         userInput.value = "";
         userInput.style.height = 'auto';
         const imageToSend = currentImageBase64;
-        const imageName = currentImageFile ? currentImageFile.name : 'imagen';
         clearImagePreview();
 
-        // Deshabilitar controles
-        sendButton.disabled = true;
-        imageButton.disabled = true;
+        if (imageButton) imageButton.disabled = true;
         userInput.disabled = true;
 
-        try {
-            // Indicador de procesamiento
-            const loadingMsg = addMessage('🔄 Analizando imagen con WhyAI Duo...', 'ia');
+        const spinnerElement = document.createElement("div");
+        spinnerElement.classList.add("message", "ia");
+        spinnerElement.innerHTML = `
+            <div class="spinner">
+              <div class="bounce1"></div>
+              <div class="bounce2"></div>
+              <div class="bounce3"></div>
+            </div>
+        `;
+        chatBox.appendChild(spinnerElement);
+        
+        requestAnimationFrame(() => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
 
-            // Llamar al endpoint de LLaMA Duo
+        try {
             const response = await fetch('/api/llama-duo', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -373,28 +418,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
 
-            // Remover mensaje de carga
-            loadingMsg.remove();
+            if (chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
 
             if (!response.ok || !data.success) {
                 throw new Error(data.error || 'Error al procesar la imagen');
             }
 
-            // Mostrar respuesta con efecto de tipeo
+            if (!isGenerating) return;
+
             await addMessageWithTyping(data.reply, 'ia');
+            
+            chatHistory.push({ role: "user", text: displayMessage });
             chatHistory.push({ role: "ia", text: data.reply });
 
-            // Registrar tokens
             const totalTokens = estimateTokens(promptText + data.reply);
             recordTokenUsage(totalTokens);
 
-            // Limitar historial
             limitChatHistory();
 
         } catch (error) {
             console.error('Error en LLaMA Duo:', error);
             
-            let errorMessage = '❌ Error al procesar la imagen. ';
+            if (chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
+            
+            let errorMessage = 'Lo siento, hubo un error al procesar la imagen. ';
             if (error.message.includes('429') || error.message.includes('saturado')) {
                 errorMessage += 'El servicio está saturado. Intenta en unos segundos.';
             } else if (error.message.includes('límite')) {
@@ -405,87 +452,131 @@ document.addEventListener("DOMContentLoaded", () => {
             
             addMessage(errorMessage, 'ia');
         } finally {
-            isSubmitting = false;
-            isGenerating = false;
-            sendButton.disabled = false;
-            imageButton.disabled = false;
-            userInput.disabled = false;
-            userInput.focus();
+            setTimeout(() => {
+                sendButton.disabled = false;
+                sendButton.textContent = '⛰︎';
+                isGenerating = false;
+                if (imageButton) imageButton.disabled = false;
+                userInput.disabled = false;
+                userInput.focus();
+                isSubmitting = false;
+            }, 100);
         }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // ENVIAR MENSAJE DE TEXTO (CHAT NORMAL)
+    // LÓGICA DE ENVÍO (TEXTO NORMAL)
     // ═══════════════════════════════════════════════════════════
     
-    async function sendTextMessage(message) {
-        isSubmitting = true;
-        isGenerating = true;
+    function handleSendMessage(text) {
+        const currentTime = Date.now();
 
-        const estimatedPromptTokens = estimateTokens(message);
-        const check = canSendMessage(estimatedPromptTokens);
+        if (currentTime - lastSubmitTime < DEBOUNCE_TIME) return;
+        if (isSubmitting) return;
+        if (!text || text.trim() === '') return;
+        if (isComposing) return;
+
+        const estimatedTokens = estimateTokens(text) + estimateTokens(JSON.stringify(chatHistory));
+        const check = canSendMessage(estimatedTokens);
 
         if (!check.allowed) {
             addMessage(check.message, 'ia');
             if (check.reason === 'token_limit') {
                 activateCooldown();
             }
-            isSubmitting = false;
-            isGenerating = false;
             return;
         }
 
-        addMessage(message, "user");
-        chatHistory.push({ role: "user", text: message });
+        lastSubmitTime = currentTime;
+        isSubmitting = true;
+        isGenerating = true;
+        userScrolled = false;
+        autoScrollEnabled = true;
+        
+        sendButton.textContent = '◼︎';
+        sendButton.disabled = false;
 
-        userInput.value = "";
+        const messageText = text;
+        userInput.value = ""; 
         userInput.style.height = 'auto';
-        sendButton.disabled = true;
-        imageButton.disabled = true;
-        userInput.disabled = true;
 
+        addMessage(messageText, "user");
+
+        const spinnerElement = document.createElement("div");
+        spinnerElement.classList.add("message", "ia"); 
+        spinnerElement.innerHTML = `
+            <div class="spinner">
+              <div class="bounce1"></div>
+              <div class="bounce2"></div>
+              <div class="bounce3"></div>
+            </div>
+        `;
+        chatBox.appendChild(spinnerElement);
+        
+        requestAnimationFrame(() => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        sendToAPI(messageText, spinnerElement, estimatedTokens);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // CONEXIÓN CON API
+    // ═══════════════════════════════════════════════════════════
+    
+    async function sendToAPI(text, spinnerElement, estimatedTokens) {
         try {
-            const response = await fetch('/api/chat', {
+            const backendUrl = '/api/chat'; 
+
+            const response = await fetch(backendUrl, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    prompt: message,
-                    history: chatHistory.slice(0, -1)
-                })
+                    prompt: text,
+                    history: chatHistory
+                }), 
             });
+
+            if (response.status === 429) {
+                if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
+                const errorData = await response.json();
+                addMessage(errorData.reply || '⏳ Servicio temporalmente saturado. Espera unos minutos.', 'ia');
+                activateCooldown();
+                return;
+            }
+
+            if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
             const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(data.reply || 'Error en el servidor');
+            if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
+
+            if (!isGenerating) {
+                return;
             }
 
-            await addMessageWithTyping(data.reply, 'ia');
-            chatHistory.push({ role: "ia", text: data.reply });
+            const responseTokens = estimateTokens(data.reply);
+            recordTokenUsage(estimatedTokens + responseTokens);
 
-            const totalTokens = estimateTokens(message + data.reply);
-            recordTokenUsage(totalTokens);
+            await addMessageWithTyping(data.reply, "ia");
+
+            chatHistory.push({ role: "user", text: text });
+            chatHistory.push({ role: "ia", text: data.reply });
 
             limitChatHistory();
 
         } catch (error) {
-            console.error('Error:', error);
-            
-            let errorMessage = 'Lo siento, hubo un error al procesar tu mensaje. ';
-            if (error.message.includes('429') || error.message.includes('saturado')) {
-                errorMessage += 'El servicio está saturado. Intenta en unos segundos.';
-            } else {
-                errorMessage += 'Por favor inténtalo de nuevo.';
-            }
-            
-            addMessage(errorMessage, 'ia');
+            console.error("Error:", error);
+            if(chatBox.contains(spinnerElement)) chatBox.removeChild(spinnerElement);
+            addMessage("Lo siento, algo salió mal. Intenta de nuevo.", "ia");
         } finally {
-            isSubmitting = false;
-            isGenerating = false;
-            sendButton.disabled = false;
-            imageButton.disabled = false;
-            userInput.disabled = false;
-            userInput.focus();
+            setTimeout(() => {
+                sendButton.disabled = false;
+                sendButton.textContent = '⛰︎';
+                isGenerating = false;
+                userInput.focus();
+                isSubmitting = false;
+            }, 100);
         }
     }
 
@@ -543,7 +634,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         
         forceScrollToBottom();
-        return messageElement; // 🆕 Retornar el elemento para poder eliminarlo
     }
 
     function typeHTML(element, html, speed) {
@@ -655,7 +745,5 @@ document.addEventListener("DOMContentLoaded", () => {
         requestAnimationFrame(() => {
             chatBox.scrollTop = chatBox.scrollHeight;
         });
-
-        return messageElement; // 🆕 Retornar para poder manipularlo
     }
 });
