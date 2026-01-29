@@ -181,12 +181,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 showImagePreview(base64, file.name);
 
-                imageButton.innerHTML = '📎';
+                imageButton.innerHTML = '+';
                 imageButton.disabled = false;
                 userInput.focus();
             } catch (error) {
                 addMessage('❌ Error al procesar la imagen', 'ia');
-                imageButton.innerHTML = '📎';
+                imageButton.innerHTML = '+';
                 imageButton.disabled = false;
             }
 
